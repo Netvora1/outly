@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "298079047994",
+    "project_id": "clipza-1bf99",
+    "storage_bucket": "clipza-1bf99.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:298079047994:android:e5d0740cef52b9f927c003",
+        "android_client_info": {
+          "package_name": "com.clipza.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "298079047994-17krjetclr2tfcaa4kcd9p0knb7uvhn2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDJ5JgrOAPRzKpRNbu8jJgNQ2MMZztDXso"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "298079047994-17krjetclr2tfcaa4kcd9p0knb7uvhn2.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:298079047994:android:83875eed4257234827c003",
+        "android_client_info": {
+          "package_name": "com.example.clipza"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "298079047994-17krjetclr2tfcaa4kcd9p0knb7uvhn2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDJ5JgrOAPRzKpRNbu8jJgNQ2MMZztDXso"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "298079047994-17krjetclr2tfcaa4kcd9p0knb7uvhn2.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
