@@ -4,6 +4,7 @@ import '../../widgets/auth/gradient_button.dart';
 import '../../widgets/auth/outly_logo.dart';
 import '../../widgets/auth/auth_hero_card.dart';
 import '../../widgets/common/info_card.dart';
+import '../../core/app_colors.dart';
 
 import 'register_screen.dart';
 import '../../main.dart';

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/app_colors.dart';
 import '../../main.dart';
 
 class OutlyLogo extends StatelessWidget {
@@ -18,7 +19,7 @@ class OutlyLogo extends StatelessWidget {
           height: size,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: const LinearGradient(colors: [C.purple, C.cyan]),
+            gradient:  LinearGradient(colors: [C.purple, C.cyan]),
             boxShadow: [BoxShadow(color: C.cyan.withOpacity(0.35), blurRadius: 30)],
           ),
           child: Icon(Icons.explore, color: Colors.white, size: big ? 54 : 30),

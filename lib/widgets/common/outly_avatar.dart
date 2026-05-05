@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../main.dart';
+import '../../core/app_colors.dart';
 
 class OutlyAvatar extends StatelessWidget {
   final String photoUrl;

@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../main.dart';
+import '../../core/app_colors.dart';
 
-import 'package:flutter/material.dart';
-import '../../main.dart';
 
 Widget verifiedName(String name, bool verified, {double size = 16}) {
   return Row(
