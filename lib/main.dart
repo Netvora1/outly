@@ -19,6 +19,9 @@ import 'widgets/auth/gradient_button.dart';
 import 'widgets/auth/outly_logo.dart';
 import 'widgets/common/info_card.dart';
 import '../../widgets/common/segment_button.dart';
+import 'widgets/common/circle_icon_button.dart';
+import 'widgets/common/outly_avatar.dart';
+import 'widgets/common/verified_name.dart';
 
 import 'firebase_options.dart';
 
@@ -8151,78 +8154,6 @@ class LegalTextPage extends StatelessWidget {
   }
 }
 
-class OutlyAvatar extends StatelessWidget {
-  final String photoUrl;
-  final String fallbackIcon;
-  final double radius;
-
-  const OutlyAvatar({
-    super.key,
-    required this.photoUrl,
-    this.fallbackIcon = "",
-    this.radius = 24,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cleanUrl = photoUrl.trim();
-    final hasImage = cleanUrl.isNotEmpty && cleanUrl.startsWith("http");
-
-    return CircleAvatar(
-      radius: radius,
-      backgroundColor: C.card2,
-      child: ClipOval(
-        child: hasImage
-            ? Image.network(
-                cleanUrl,
-                width: radius * 2,
-                height: radius * 2,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) {
-                  return Icon(Icons.person, color: C.cyan, size: radius);
-                },
-                loadingBuilder: (context, child, progress) {
-                  if (progress == null) return child;
-                  return SizedBox(
-                    width: radius * 2,
-                    height: radius * 2,
-                    child: const Center(
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: C.cyan,
-                      ),
-                    ),
-                  );
-                },
-              )
-            : Icon(Icons.person, color: C.cyan, size: radius),
-      ),
-    );
-  }
-}
-
-Widget verifiedName(String username, bool verified, {double size = 16}) {
-  return Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Flexible(
-        child: Text(
-          "@$username",
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: size,
-          ),
-        ),
-      ),
-      if (verified) ...[
-        const SizedBox(width: 5),
-        const Icon(Icons.verified, color: Colors.blue, size: 18),
-      ],
-    ],
-  );
-}
 
 class ProfileBox extends StatelessWidget {
   final Map<String, dynamic> data;
@@ -8850,29 +8781,6 @@ class ProfileStat extends StatelessWidget {
     );
   }
 }
-
-class CircleIconButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const CircleIconButton({
-    super.key,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return CircleAvatar(
-      backgroundColor: Colors.black.withOpacity(0.35),
-      child: IconButton(
-        icon: Icon(icon, color: Colors.white),
-        onPressed: onTap,
-      ),
-    );
-  }
-}
-
 
 class ReportUserButton extends StatefulWidget {
   final String targetUserId;
