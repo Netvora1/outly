@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../widgets/auth/gradient_button.dart';
+import '../../widgets/auth/outly_logo.dart';
 import '../../main.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -145,7 +147,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         physics: const BouncingScrollPhysics(),
         child: Column(
           children: [
-            const OutlyLogo(big: true),
+            OutlyLogo(big: true),
             const SizedBox(height: 12),
             const Text(
               "Erstell dein Profil.\nFinde echte Pläne.",

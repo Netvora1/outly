@@ -15,6 +15,8 @@ import 'package:http/http.dart' as http;
 import 'package:image_cropper/image_cropper.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
+import 'widgets/auth/gradient_button.dart';
+import 'widgets/auth/outly_logo.dart';
 
 import 'firebase_options.dart';
 
@@ -8842,68 +8844,6 @@ class AuthShell extends StatelessWidget {
           padding: const EdgeInsets.all(24),
           child: child,
         ),
-      ),
-    );
-  }
-}
-class OutlyLogo extends StatelessWidget {
-  final bool big;
-
-  const OutlyLogo({super.key, this.big = false});
-
-  @override
-  Widget build(BuildContext context) {
-    final size = big ? 96.0 : 52.0;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: const LinearGradient(colors: [C.purple, C.cyan]),
-            boxShadow: [BoxShadow(color: C.cyan.withOpacity(0.35), blurRadius: 30)],
-          ),
-          child: Icon(Icons.explore, color: Colors.white, size: big ? 54 : 30),
-        ),
-        if (big) ...[
-          const SizedBox(height: 14),
-          const Text(
-            "Outly",
-            style: TextStyle(color: C.cyan, fontSize: 42, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class GradientButton extends StatelessWidget {
-  final String text;
-  final VoidCallback onPressed;
-
-  const GradientButton({super.key, required this.text, required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 52,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        gradient: const LinearGradient(colors: [C.purple, C.cyan]),
-        boxShadow: [BoxShadow(color: C.purple.withOpacity(0.35), blurRadius: 18)],
-      ),
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          foregroundColor: Colors.white,
-        ),
-        onPressed: onPressed,
-        child: Text(text, style: const TextStyle(fontWeight: FontWeight.bold)),
       ),
     );
   }

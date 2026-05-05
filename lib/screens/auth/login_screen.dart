@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../widgets/auth/gradient_button.dart';
+import '../../widgets/auth/outly_logo.dart';
 
 import 'register_screen.dart';
 import '../../main.dart';
@@ -73,7 +75,7 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Column(
           children: [
             const SizedBox(height: 20),
-            const OutlyLogo(big: true),
+            OutlyLogo(big: true),
             const SizedBox(height: 14),
             const Text(
               "Raus aus dem Scrollen.\nRein ins echte Leben.",
