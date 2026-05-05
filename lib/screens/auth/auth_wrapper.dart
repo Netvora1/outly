@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'login_screen.dart';
 
 import '../../main.dart';
 
@@ -14,7 +15,7 @@ class AuthWrapper extends StatelessWidget {
         final user = snap.data;
 
         if (user == null) {
-          return const LoginScreen();
+          return LoginScreen();
         }
 
         if (!user.emailVerified) {
