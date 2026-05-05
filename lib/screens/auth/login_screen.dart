@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'register_screen.dart';
 import '../../main.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -140,7 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                      MaterialPageRoute(builder: (_) => RegisterScreen()),
                     );
                   },
                   child: const Text(
