@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../widgets/auth/auth_hero_card.dart';
 import '../../widgets/auth/gradient_button.dart';
 import '../../widgets/auth/outly_logo.dart';
 import '../../main.dart';
+import '../../widgets/auth/auth_check_tile.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});

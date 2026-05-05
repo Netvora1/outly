@@ -17,6 +17,8 @@ import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
 import 'widgets/auth/gradient_button.dart';
 import 'widgets/auth/outly_logo.dart';
+import 'widgets/common/info_card.dart';
+import '../../widgets/common/segment_button.dart';
 
 import 'firebase_options.dart';
 
@@ -432,138 +434,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class AuthHeroCard extends StatelessWidget {
-  final bool compact;
-
-  const AuthHeroCard({super.key, this.compact = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(compact ? 16 : 18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
-        gradient: LinearGradient(
-          colors: [
-            C.purple.withOpacity(0.55),
-            C.card,
-            C.cyan.withOpacity(0.18),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        border: Border.all(color: C.cyan.withOpacity(0.25)),
-        boxShadow: [
-          BoxShadow(
-            color: C.purple.withOpacity(0.25),
-            blurRadius: 28,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: compact ? 54 : 64,
-            height: compact ? 54 : 64,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(colors: [C.purple, C.cyan]),
-            ),
-            child: Icon(
-              Icons.explore,
-              color: Colors.white,
-              size: compact ? 30 : 36,
-            ),
-          ),
-          const SizedBox(width: 14),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Live. Safe. Real.",
-                  style: TextStyle(
-                    color: C.cyan,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(height: 5),
-                Text(
-                  "Events, Leute und echte Momente in deiner Nähe.",
-                  style: TextStyle(color: Colors.white70, height: 1.35),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class AuthCheckTile extends StatelessWidget {
-  final bool value;
-  final Color color;
-  final IconData icon;
-  final String title;
-  final ValueChanged<bool> onChanged;
-  final VoidCallback? onTapText;
-
-  const AuthCheckTile({
-    super.key,
-    required this.value,
-    required this.color,
-    required this.icon,
-    required this.title,
-    required this.onChanged,
-    this.onTapText,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => onChanged(!value),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.all(13),
-        decoration: BoxDecoration(
-          color: value ? color.withOpacity(0.13) : C.card,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: value ? color.withOpacity(0.65) : Colors.white.withOpacity(0.08),
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: color),
-            const SizedBox(width: 10),
-            Expanded(
-              child: GestureDetector(
-                onTap: onTapText,
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    color: onTapText == null ? Colors.white70 : C.cyan,
-                    fontWeight: onTapText == null ? FontWeight.w500 : FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-            Checkbox(
-              value: value,
-              activeColor: color,
-              onChanged: (v) => onChanged(v ?? false),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -3573,7 +3443,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                           const SizedBox(height: 12),
 
                           if (!joined)
-                            const InfoCard(
+                             InfoCard(
                               title: "Chat gesperrt",
                               text: "Du musst beim Event dabei sein, um den Chat zu sehen.",
                             )
@@ -5332,6 +5202,42 @@ class FriendsSearch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Widget userTile(QueryDocumentSnapshot doc) {
+      final data = doc.data() as Map<String, dynamic>;
+
+      return Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: C.card,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: C.cyan.withOpacity(0.22)),
+        ),
+        child: ListTile(
+          leading: OutlyAvatar(
+            photoUrl: (data["photoUrl"] ?? "").toString(),
+            radius: 25,
+          ),
+          title: verifiedName(
+            data["username"] ?? "user",
+            data["verified"] == true,
+          ),
+          subtitle: Text(
+            data["city"] ?? "Keine Stadt",
+            style: const TextStyle(color: Colors.white54),
+          ),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => UserProfileScreen(userId: doc.id),
+              ),
+            );
+          },
+        ),
+      );
+    }
+
     return Column(
       children: [
         Padding(
@@ -5344,82 +5250,106 @@ class FriendsSearch extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 12),
-        Expanded(
-          child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance.collection("users").snapshots(),
-            builder: (context, snap) {
-              if (!snap.hasData) {
-                return const Center(child: CircularProgressIndicator(color: C.cyan));
-              }
 
-              final users = snap.data!.docs.where((doc) {
-                if (doc.id == uid) return false;
-                final data = doc.data() as Map<String, dynamic>;
-                if (data["isBanned"] == true) return false;
+        const SizedBox(height: 14),
 
-                final name = (data["username"] ?? "").toString().toLowerCase();
-
-                if (search.isEmpty) {
-                  final myFollowing = List<String>.from(data["followers"] ?? []);
-                  return myFollowing.contains(uid);
-                }
-
-                return name.contains(search);
-              }).toList();
-
-              if (users.isEmpty) {
-                return const Center(
-                  child: InfoCard(
-                    title: "Keine Freunde gefunden",
-                    text: "Suche nach Usern oder folge Leuten.",
-                  ),
-                );
-              }
-
-              return ListView.builder(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(14, 0, 14, 140),
-                itemCount: users.length,
-                itemBuilder: (context, i) {
-                  final doc = users[i];
-                  final data = doc.data() as Map<String, dynamic>;
-
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: C.card,
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: C.cyan.withOpacity(0.22)),
-                    ),
-                    child: ListTile(
-                      leading: OutlyAvatar(
-                        photoUrl: (data["photoUrl"] ?? "").toString(),
-                        radius: 25,
-                      ),
-                      title: verifiedName(
-                        data["username"] ?? "user",
-                        data["verified"] == true,
-                      ),
-                      subtitle: Text(
-                        data["city"] ?? "Keine Stadt",
-                        style: const TextStyle(color: Colors.white54),
-                      ),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => UserProfileScreen(userId: doc.id),
-                          ),
-                        );
-                      },
-                    ),
-                  );
-                },
+        StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance.collection("users").snapshots(),
+          builder: (context, snap) {
+            if (!snap.hasData) {
+              return const Padding(
+                padding: EdgeInsets.all(24),
+                child: Center(
+                  child: CircularProgressIndicator(color: C.cyan),
+                ),
               );
-            },
-          ),
+            }
+
+            final allUsers = snap.data!.docs.where((doc) {
+              if (doc.id == uid) return false;
+
+              final data = doc.data() as Map<String, dynamic>;
+              if (data["isBanned"] == true) return false;
+
+              return true;
+            }).toList();
+
+            final searchResults = allUsers.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              final name = (data["username"] ?? "").toString().toLowerCase();
+
+              if (search.isEmpty) {
+                final followers = List<String>.from(data["followers"] ?? []);
+                return followers.contains(uid);
+              }
+
+              return name.contains(search);
+            }).toList();
+
+            final suggestions = allUsers.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              final followers = List<String>.from(data["followers"] ?? []);
+
+              return !followers.contains(uid);
+            }).take(5).toList();
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (search.isEmpty && suggestions.isNotEmpty) ...[
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 18),
+                    child: Text(
+                      "✨ Vorschläge für dich",
+                      style: TextStyle(
+                        color: C.cyan,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    child: Column(
+                      children: suggestions.map(userTile).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                ],
+
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  child: Text(
+                    search.isEmpty ? "Deine Freunde" : "Suchergebnisse",
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 10),
+
+                if (searchResults.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 14, vertical: 20),
+                    child: InfoCard(
+                      title: "Keine Freunde gefunden",
+                      text: "Suche nach Usern oder folge Leuten.",
+                    ),
+                  )
+                else
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    child: Column(
+                      children: searchResults.map(userTile).toList(),
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
       ],
     );
@@ -8870,41 +8800,6 @@ class AuthShell extends StatelessWidget {
   }
 }
 
-class InfoCard extends StatelessWidget {
-  final String title;
-  final String text;
-
-  const InfoCard({super.key, required this.title, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 320,
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: C.card,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: C.cyan.withOpacity(0.25)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(color: C.cyan, fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            text,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white70),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class SettingsCard extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -8978,42 +8873,6 @@ class CircleIconButton extends StatelessWidget {
   }
 }
 
-class SegmentButton extends StatelessWidget {
-  final String text;
-  final bool active;
-  final VoidCallback onTap;
-
-  const SegmentButton({
-    super.key,
-    required this.text,
-    required this.active,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: active ? C.purple : Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Center(
-          child: Text(
-            text,
-            style: TextStyle(
-              color: active ? Colors.white : Colors.white54,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class ReportUserButton extends StatefulWidget {
   final String targetUserId;

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../widgets/auth/gradient_button.dart';
 import '../../widgets/auth/outly_logo.dart';
+import '../../widgets/auth/auth_hero_card.dart';
+import '../../widgets/common/info_card.dart';
 
 import 'register_screen.dart';
 import '../../main.dart';
