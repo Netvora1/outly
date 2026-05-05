@@ -1418,251 +1418,272 @@ class ActivityCard extends StatelessWidget {
     this.visibility = "public",
   });
 
-  @override
-  Widget build(BuildContext context) {
-    final color = catColor(category);
-    final full = max > 0 && participants.length >= max;
-    final almostFull = max > 0 && participants.length >= max * 0.7 && !full;
+ @override
+Widget build(BuildContext context) {
+  final color = catColor(category);
+  final full = max > 0 && participants.length >= max;
+  final almostFull = max > 0 && participants.length >= max * 0.7 && !full;
+  final cleanImageUrl = imageUrl.trim();
 
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ActivityDetailScreen(activityId: id),
-          ),
-        );
-      },
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        height: 236,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.32),
-              blurRadius: 26,
-              offset: const Offset(0, 12),
-            ),
+  Widget fallbackImage() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            color.withOpacity(0.85),
+            C.card,
+            Colors.black,
           ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(30),
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: imageUrl.isNotEmpty
-                    ? Image.network(
-                        imageUrl,
-                        fit: BoxFit.cover,
-                      )
-                    : Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              color.withOpacity(0.85),
-                              C.card,
-                              Colors.black,
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                        ),
-                        child: Center(
-                          child: Icon(
-                            catIcon(category),
-                            size: 76,
-                            color: Colors.white.withOpacity(0.95),
-                          ),
-                        ),
-                      ),
-              ),
-
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.black.withOpacity(0.08),
-                        Colors.black.withOpacity(0.30),
-                        Colors.black.withOpacity(0.78),
-                      ],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                  ),
-                ),
-              ),
-
-              Positioned(
-                top: 14,
-                left: 14,
-                child: Row(
-                  children: [
-                    _cardBadge(
-                      category,
-                      color,
-                      textColor: Colors.black,
-                    ),
-                    const SizedBox(width: 7),
-                    _cardBadge(
-                      "$date • $time",
-                      Colors.white,
-                      textColor: Colors.black,
-                    ),
-                  ],
-                ),
-              ),
-
-              Positioned(
-                top: 14,
-                right: 14,
-                child: Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.38),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white.withOpacity(0.12)),
-                  ),
-                  child: Icon(
-                    visibility == "public"
-                        ? Icons.public
-                        : visibility == "followers"
-                            ? Icons.group
-                            : Icons.lock,
-                    color: Colors.white70,
-                    size: 19,
-                  ),
-                ),
-              ),
-
-              if (almostFull || full)
-                Positioned(
-                  left: 14,
-                  top: 58,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: full ? Colors.redAccent : C.orange,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Text(
-                      full ? "Voll" : "Fast voll",
-                      style: const TextStyle(
-                        color: Colors.black,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-
-              Positioned(
-                left: 16,
-                right: 16,
-                bottom: 16,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 23,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        const Icon(Icons.location_on_outlined, color: Colors.white70, size: 17),
-                        const SizedBox(width: 5),
-                        Expanded(
-                          child: Text(
-                            place,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: Colors.white70),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 13),
-
-                    Row(
-                      children: [
-                        SizedBox(
-                          width: 76,
-                          height: 28,
-                          child: Stack(
-                            children: List.generate(
-                              participants.length.clamp(0, 3),
-                              (i) => Positioned(
-                                left: i * 20,
-                                child: Container(
-                                  width: 28,
-                                  height: 28,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Colors.white24,
-                                    border: Border.all(color: Colors.white, width: 1.5),
-                                  ),
-                                  child: const Icon(Icons.person, size: 14),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        Text(
-                          max > 0 ? "${participants.length}/$max" : "${participants.length}",
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-
-                        const Spacer(),
-
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: full ? Colors.white24 : color,
-                            foregroundColor: full ? Colors.white70 : Colors.black,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 18,
-                              vertical: 11,
-                            ),
-                          ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => ActivityDetailScreen(activityId: id),
-                              ),
-                            );
-                          },
-                          child: Text(
-                            full ? "Voll" : "Ansehen",
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+      ),
+      child: Center(
+        child: Icon(
+          catIcon(category),
+          size: 76,
+          color: Colors.white.withOpacity(0.95),
         ),
       ),
     );
   }
+
+  return GestureDetector(
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ActivityDetailScreen(activityId: id),
+        ),
+      );
+    },
+    child: Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      height: 236,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.32),
+            blurRadius: 26,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(30),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: cleanImageUrl.isNotEmpty
+                  ? Image.network(
+                      cleanImageUrl,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, progress) {
+                        if (progress == null) return child;
+                        return const Center(
+                          child: CircularProgressIndicator(color: C.cyan),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        print("BILD FEHLER ActivityCard: $error");
+                        print("URL WAR: $cleanImageUrl");
+                        return fallbackImage();
+                      },
+                    )
+                  : fallbackImage(),
+            ),
+
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.black.withOpacity(0.08),
+                      Colors.black.withOpacity(0.30),
+                      Colors.black.withOpacity(0.78),
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                ),
+              ),
+            ),
+
+            Positioned(
+              top: 14,
+              left: 14,
+              child: Row(
+                children: [
+                  _cardBadge(
+                    category,
+                    color,
+                    textColor: Colors.black,
+                  ),
+                  const SizedBox(width: 7),
+                  _cardBadge(
+                    "$date • $time",
+                    Colors.white,
+                    textColor: Colors.black,
+                  ),
+                ],
+              ),
+            ),
+
+            Positioned(
+              top: 14,
+              right: 14,
+              child: Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.38),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white.withOpacity(0.12)),
+                ),
+                child: Icon(
+                  visibility == "public"
+                      ? Icons.public
+                      : visibility == "followers"
+                          ? Icons.group
+                          : Icons.lock,
+                  color: Colors.white70,
+                  size: 19,
+                ),
+              ),
+            ),
+
+            if (almostFull || full)
+              Positioned(
+                left: 14,
+                top: 58,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: full ? Colors.redAccent : C.orange,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    full ? "Voll" : "Fast voll",
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 16,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 23,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.location_on_outlined,
+                        color: Colors.white70,
+                        size: 17,
+                      ),
+                      const SizedBox(width: 5),
+                      Expanded(
+                        child: Text(
+                          place,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Colors.white70),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 13),
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 76,
+                        height: 28,
+                        child: Stack(
+                          children: List.generate(
+                            participants.length.clamp(0, 3),
+                            (i) => Positioned(
+                              left: i * 20,
+                              child: Container(
+                                width: 28,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white24,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: const Icon(Icons.person, size: 14),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Text(
+                        max > 0
+                            ? "${participants.length}/$max"
+                            : "${participants.length}",
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Spacer(),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: full ? Colors.white24 : color,
+                          foregroundColor: full ? Colors.white70 : Colors.black,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 18,
+                            vertical: 11,
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ActivityDetailScreen(activityId: id),
+                            ),
+                          );
+                        },
+                        child: Text(
+                          full ? "Voll" : "Ansehen",
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
 
   Widget _cardBadge(
     String text,
