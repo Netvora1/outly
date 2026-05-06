@@ -1,29 +1,312 @@
-<html>
-<head><title>Privacy Policy - Outly</title></head>
-<body style="background:#0b0f1a;color:white;font-family:sans-serif;padding:20px;">
-<h1>Privacy Policy</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Outly Privacy Policy</title>
 
-<p>We respect your privacy.</p>
+  <style>
+    *{
+      margin:0;
+      padding:0;
+      box-sizing:border-box;
+    }
 
-<h2>Data we collect:</h2>
-<ul>
-<li>Account information (username, email)</li>
-<li>Location (for events near you)</li>
-<li>App usage data</li>
-</ul>
+    body{
+      min-height:100vh;
+      background:
+      radial-gradient(circle at top left,#7c3aed22,transparent 35%),
+      radial-gradient(circle at bottom right,#00d4ff22,transparent 35%),
+      linear-gradient(135deg,#050816,#0b1020,#111827);
+      color:white;
+      font-family:Inter,sans-serif;
+      overflow-x:hidden;
+    }
 
-<h2>Why we collect data:</h2>
-<ul>
-<li>To show events near you</li>
-<li>To improve the app</li>
-<li>To keep users safe</li>
-</ul>
+    .wrapper{
+      max-width:1000px;
+      margin:auto;
+      padding:70px 24px;
+    }
 
-<h2>Security:</h2>
-<p>We use secure systems to protect your data.</p>
+    .hero{
+      position:relative;
+      overflow:hidden;
+      padding:50px;
+      border-radius:38px;
+      background:rgba(255,255,255,0.04);
+      border:1px solid rgba(0,212,255,0.18);
+      backdrop-filter:blur(20px);
+      box-shadow:
+      0 0 40px rgba(0,212,255,0.12),
+      0 0 80px rgba(170,0,255,0.10);
+    }
 
-<h2>Contact:</h2>
-<p>support@outly.site</p>
+    .glow{
+      position:absolute;
+      width:260px;
+      height:260px;
+      border-radius:50%;
+      background:#00d4ff22;
+      filter:blur(90px);
+      top:-100px;
+      right:-100px;
+    }
+
+    .logo{
+      font-size:64px;
+      font-weight:900;
+      line-height:1;
+      background:linear-gradient(90deg,#ff00cc,#9f5cff,#00d4ff);
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+    }
+
+    .subtitle{
+      margin-top:10px;
+      color:#b8c2d9;
+      font-size:18px;
+      font-weight:600;
+      letter-spacing:1px;
+    }
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      margin-top:20px;
+      padding:10px 16px;
+      border-radius:999px;
+      background:#00d4ff14;
+      border:1px solid #00d4ff33;
+      color:#00d4ff;
+      font-weight:700;
+      font-size:14px;
+    }
+
+    .headline{
+      margin-top:40px;
+      font-size:42px;
+      font-weight:900;
+      line-height:1.1;
+    }
+
+    .headline span{
+      color:#00d4ff;
+    }
+
+    .intro{
+      margin-top:20px;
+      color:#c8d0df;
+      font-size:18px;
+      line-height:1.7;
+      max-width:760px;
+    }
+
+    .section{
+      margin-top:34px;
+      padding:28px;
+      border-radius:28px;
+      background:rgba(255,255,255,0.03);
+      border:1px solid rgba(255,255,255,0.08);
+    }
+
+    .section h2{
+      font-size:24px;
+      margin-bottom:16px;
+      color:#00d4ff;
+    }
+
+    .section p{
+      color:#c8d0df;
+      line-height:1.8;
+      font-size:16px;
+      margin-bottom:14px;
+    }
+
+    .section ul{
+      padding-left:20px;
+    }
+
+    .section li{
+      color:#c8d0df;
+      margin-bottom:12px;
+      line-height:1.7;
+    }
+
+    .mailbox{
+      margin-top:20px;
+      padding:22px;
+      border-radius:22px;
+      background:#00d4ff12;
+      border:1px solid #00d4ff33;
+    }
+
+    .mailbox h3{
+      color:#00d4ff;
+      margin-bottom:8px;
+    }
+
+    .mail{
+      font-size:24px;
+      font-weight:900;
+      background:linear-gradient(90deg,#ff00cc,#00d4ff);
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+      word-break:break-word;
+    }
+
+    .footer{
+      margin-top:50px;
+      text-align:center;
+      color:#7d8597;
+      font-size:14px;
+    }
+
+    @media(max-width:700px){
+
+      .hero{
+        padding:34px 24px;
+      }
+
+      .logo{
+        font-size:50px;
+      }
+
+      .headline{
+        font-size:32px;
+      }
+
+      .mail{
+        font-size:20px;
+      }
+
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="wrapper">
+
+  <div class="hero">
+
+    <div class="glow"></div>
+
+    <div class="logo">OUTLY.</div>
+
+    <div class="subtitle">
+      PRIVACY & DATA PROTECTION
+    </div>
+
+    <div class="badge">
+      🔒 Safe • Transparent • Community First
+    </div>
+
+    <div class="headline">
+      Your privacy <span>matters.</span>
+    </div>
+
+    <div class="intro">
+      Outly is built to connect real people safely in real life.
+      We protect your personal information and only use data
+      necessary to improve the platform, events and community safety.
+    </div>
+
+    <div class="section">
+      <h2>1. Information We Collect</h2>
+
+      <p>
+        When using Outly, we may collect:
+      </p>
+
+      <ul>
+        <li>Profile information (username, profile image, bio)</li>
+        <li>Email address and authentication data</li>
+        <li>Event participation and activity data</li>
+        <li>Messages and event chat content</li>
+        <li>Location data for nearby events and discovery features</li>
+        <li>Device and technical information for security and stability</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>2. How We Use Your Data</h2>
+
+      <ul>
+        <li>To provide event discovery and social features</li>
+        <li>To improve safety and moderation systems</li>
+        <li>To prevent abuse, spam and fake accounts</li>
+        <li>To personalize nearby recommendations</li>
+        <li>To maintain platform stability and support</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>3. Safety & Moderation</h2>
+
+      <p>
+        Outly may review reports, chats, profiles and event activity
+        when necessary to protect users and enforce community rules.
+      </p>
+
+      <p>
+        Dangerous, illegal or abusive behavior can lead to
+        moderation actions including warnings, suspensions
+        or permanent bans.
+      </p>
+    </div>
+
+    <div class="section">
+      <h2>4. Data Sharing</h2>
+
+      <p>
+        We do not sell your personal data.
+      </p>
+
+      <p>
+        Certain services such as authentication, hosting,
+        analytics and notifications may be processed
+        by trusted third-party providers.
+      </p>
+    </div>
+
+    <div class="section">
+      <h2>5. Account & Deletion</h2>
+
+      <p>
+        You may request deletion of your account and personal data
+        at any time through support.
+      </p>
+
+      <p>
+        Some moderation or legal records may be retained
+        temporarily for security and compliance purposes.
+      </p>
+    </div>
+
+    <div class="section">
+      <h2>6. Contact</h2>
+
+      <p>
+        Questions about privacy or data protection?
+      </p>
+
+      <div class="mailbox">
+        <h3>Privacy Contact</h3>
+        <div class="mail">
+          privacy@outly.site
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    © 2026 Outly • Privacy Policy
+  </div>
+
+</div>
 
 </body>
 </html>

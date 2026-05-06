@@ -1,9 +1,39 @@
 import 'package:firebase_auth/firebase_auth.dart';
 
-const String adminUid = "roduqZRk4GgXLCQIZGIFAWN0UUg1";
+const String ownerUid = "roduqZRk4GgXLCQIZGIFAWN0UUg1";
 
-bool isAdminUser() {
-  final uid = FirebaseAuth.instance.currentUser?.uid;
-  print("roduqZRk4GgXLCQIZGIFAWN0UUg1: $uid");
-  return uid == adminUid;
+User? get currentUser => FirebaseAuth.instance.currentUser;
+String get currentUid => currentUser?.uid ?? "";
+
+bool isOwnerUid() => currentUid == ownerUid;
+
+bool canAccessAdminPanelByRole(String? role) {
+  return isOwnerUid() ||
+      role == "owner" ||
+      role == "admin" ||
+      role == "moderator" ||
+      role == "support";
+}
+
+bool canManageUsers(String? role) {
+  return isOwnerUid() || role == "owner" || role == "admin";
+}
+
+bool canManageRoles(String? role) {
+  return isOwnerUid() || role == "owner";
+}
+
+bool canModerate(String? role) {
+  return isOwnerUid() ||
+      role == "owner" ||
+      role == "admin" ||
+      role == "moderator";
+}
+
+bool canHandleSupport(String? role) {
+  return isOwnerUid() ||
+      role == "owner" ||
+      role == "admin" ||
+      role == "moderator" ||
+      role == "support";
 }

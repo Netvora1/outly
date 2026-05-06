@@ -1,17 +1,279 @@
-<html>
-<head><title>Outly Support</title></head>
-<body style="background:#0b0f1a;color:white;font-family:sans-serif;padding:20px;">
-<h1>Outly Support</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Outly Support</title>
 
-<p>Need help? We're here for you.</p>
+  <style>
+    *{
+      margin:0;
+      padding:0;
+      box-sizing:border-box;
+    }
 
-<p>Email us anytime:</p>
+    body{
+      min-height:100vh;
+      background:
+      radial-gradient(circle at top left,#ff00cc22,transparent 35%),
+      radial-gradient(circle at bottom right,#00d4ff22,transparent 35%),
+      linear-gradient(135deg,#050816,#0b1020,#111827);
+      color:white;
+      font-family:Inter,sans-serif;
+      overflow-x:hidden;
+    }
 
-<h2>support@outly.site</h2>
+    .wrapper{
+      max-width:900px;
+      margin:auto;
+      padding:70px 24px;
+    }
 
-<p>We usually respond within 24 hours.</p>
+    .hero{
+      position:relative;
+      overflow:hidden;
+      padding:50px;
+      border-radius:38px;
+      background:rgba(255,255,255,0.04);
+      border:1px solid rgba(0,212,255,0.18);
+      backdrop-filter:blur(20px);
+      box-shadow:
+      0 0 40px rgba(0,212,255,0.12),
+      0 0 80px rgba(170,0,255,0.10);
+    }
 
-<p>Outly is a platform for real-life events, connections and safe meetups.</p>
+    .glow{
+      position:absolute;
+      width:260px;
+      height:260px;
+      border-radius:50%;
+      background:#00d4ff22;
+      filter:blur(80px);
+      top:-100px;
+      right:-100px;
+    }
+
+    .logo{
+      font-size:64px;
+      font-weight:900;
+      line-height:1;
+      background:linear-gradient(90deg,#ff00cc,#9f5cff,#00d4ff);
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+    }
+
+    .subtitle{
+      margin-top:10px;
+      color:#b8c2d9;
+      font-size:18px;
+      letter-spacing:1px;
+      font-weight:600;
+    }
+
+    .headline{
+      margin-top:40px;
+      font-size:42px;
+      font-weight:900;
+      line-height:1.1;
+    }
+
+    .headline span{
+      color:#00d4ff;
+    }
+
+    .text{
+      margin-top:18px;
+      color:#c8d0df;
+      font-size:18px;
+      line-height:1.7;
+      max-width:700px;
+    }
+
+    .support-box{
+      margin-top:38px;
+      padding:26px;
+      border-radius:28px;
+      background:rgba(255,255,255,0.03);
+      border:1px solid rgba(255,255,255,0.08);
+    }
+
+    .support-title{
+      color:#00d4ff;
+      font-size:15px;
+      font-weight:800;
+      letter-spacing:2px;
+      text-transform:uppercase;
+    }
+
+    .mail{
+      margin-top:12px;
+      font-size:32px;
+      font-weight:900;
+      word-break:break-word;
+      background:linear-gradient(90deg,#ff00cc,#00d4ff);
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+    }
+
+    .response{
+      margin-top:12px;
+      color:#c8d0df;
+      font-size:16px;
+    }
+
+    .cards{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+      gap:18px;
+      margin-top:34px;
+    }
+
+    .card{
+      padding:22px;
+      border-radius:24px;
+      background:rgba(255,255,255,0.04);
+      border:1px solid rgba(255,255,255,0.08);
+      transition:0.25s;
+    }
+
+    .card:hover{
+      transform:translateY(-4px);
+      border-color:#00d4ff66;
+      box-shadow:0 0 30px rgba(0,212,255,0.12);
+    }
+
+    .card h3{
+      font-size:18px;
+      margin-bottom:10px;
+    }
+
+    .card p{
+      color:#b8c2d9;
+      line-height:1.6;
+      font-size:15px;
+    }
+
+    .footer{
+      margin-top:50px;
+      text-align:center;
+      color:#7d8597;
+      font-size:14px;
+    }
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      margin-top:20px;
+      padding:10px 16px;
+      border-radius:999px;
+      background:#00d4ff14;
+      border:1px solid #00d4ff33;
+      color:#00d4ff;
+      font-weight:700;
+      font-size:14px;
+    }
+
+    @media(max-width:700px){
+      .hero{
+        padding:32px 24px;
+      }
+
+      .logo{
+        font-size:50px;
+      }
+
+      .headline{
+        font-size:32px;
+      }
+
+      .mail{
+        font-size:24px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="wrapper">
+
+  <div class="hero">
+
+    <div class="glow"></div>
+
+    <div class="logo">OUTLY.</div>
+
+    <div class="subtitle">
+      REAL LIFE. REAL PEOPLE.
+    </div>
+
+    <div class="badge">
+      ⚡ Support • Safety • Community
+    </div>
+
+    <div class="headline">
+      We help you <span>fast.</span>
+    </div>
+
+    <div class="text">
+      Need help with your account, events, reports, moderation,
+      safety, verification or technical problems?
+      <br><br>
+      Our Outly Support Team is here for you.
+    </div>
+
+    <div class="support-box">
+
+      <div class="support-title">
+        CONTACT SUPPORT
+      </div>
+
+      <div class="mail">
+        support@outly.site
+      </div>
+
+      <div class="response">
+        Usually responding within 24 hours.
+      </div>
+
+    </div>
+
+    <div class="cards">
+
+      <div class="card">
+        <h3>🛡 Safety & Reports</h3>
+        <p>
+          Report fake users, harassment, unsafe behavior
+          or suspicious events directly to our team.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3>🔥 Event Problems</h3>
+        <p>
+          Need help with participants, chats,
+          invites or event moderation?
+        </p>
+      </div>
+
+      <div class="card">
+        <h3>⚙ Technical Support</h3>
+        <p>
+          Bugs, crashes, loading issues or account problems —
+          we help you quickly.
+        </p>
+      </div>
+
+    </div>
+
+  </div>
+
+  <div class="footer">
+    © 2026 Outly • Worldwide Social Discovery Platform
+  </div>
+
+</div>
 
 </body>
 </html>
