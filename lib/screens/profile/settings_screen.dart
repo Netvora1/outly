@@ -167,79 +167,79 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> deleteAccount(BuildContext context) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return;
 
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: C.card,
-        title: const Text("Account wirklich löschen?"),
-        content: const Text(
-          "Dein Account wird gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text("Abbrechen"),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              "Löschen",
-              style: TextStyle(color: Colors.redAccent),
-            ),
-          ),
-        ],
+  final confirm = await showDialog<bool>(
+    context: context,
+    builder: (_) => AlertDialog(
+      backgroundColor: C.card,
+      title: const Text("Account wirklich löschen?"),
+      content: const Text(
+        "Dein Account wird gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.",
       ),
-    );
-
-    if (confirm != true) return;
-
-    try {
-      await FirebaseFirestore.instance.collection("users").doc(user.uid).set({
-        "isDeleted": true,
-        "deletedAt": Timestamp.now(),
-        "email": user.email ?? "",
-      }, SetOptions(merge: true));
-
-      await user.delete();
-
-      if (!context.mounted) return;
-      Navigator.pop(context);
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Bitte neu einloggen und dann erneut löschen."),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text("Abbrechen"),
         ),
-      );
-    }
-  }
-
-  bool canAccessAdmin(String role, String uid) {
-    return uid == "roduqZRk4GgXLCQIZGIFAWN0UUg1" ||
-        role == "owner" ||
-        role == "admin" ||
-        role == "moderator" ||
-        role == "support";
-  }
-
-  Widget section(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 24, bottom: 12),
-      child: Text(
-        title,
-        style: const TextStyle(
-          color: C.cyan,
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
+        TextButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text(
+            "Löschen",
+            style: TextStyle(color: Colors.redAccent),
+          ),
         ),
+      ],
+    ),
+  );
+
+  if (confirm != true) return;
+
+  try {
+    await FirebaseFirestore.instance.collection("users").doc(user.uid).set({
+      "isDeleted": true,
+      "deletedAt": Timestamp.now(),
+      "email": user.email ?? "",
+    }, SetOptions(merge: true));
+
+    await user.delete();
+
+    if (!context.mounted) return;
+    Navigator.pop(context);
+  } catch (e) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Bitte neu einloggen und dann erneut löschen."),
       ),
     );
   }
+}
 
- @override
+bool canAccessAdmin(String role, String uid) {
+  return uid == "roduqZRk4GgXLCQIZGIFAWN0UUg1" ||
+      role == "owner" ||
+      role == "admin" ||
+      role == "moderator" ||
+      role == "support";
+}
+
+Widget section(String title) {
+  return Padding(
+    padding: const EdgeInsets.only(top: 24, bottom: 12),
+    child: Text(
+      title,
+      style: const TextStyle(
+        color: C.cyan,
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+  );
+}
+
+@override
 Widget build(BuildContext context) {
   final user = FirebaseAuth.instance.currentUser;
 
@@ -458,6 +458,7 @@ Widget build(BuildContext context) {
     ),
   );
 }
+} // ENDE _SettingsScreenState
 
 class _SettingsHero extends StatelessWidget {
   final String username;
