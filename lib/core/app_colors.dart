@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:clipza/core/app_colors.dart';
 
 class C {
   static const bg = Color(0xFF07080F);

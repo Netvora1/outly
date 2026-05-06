@@ -5,9 +5,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../widgets/auth/auth_hero_card.dart';
 import '../../widgets/auth/gradient_button.dart';
 import '../../widgets/auth/outly_logo.dart';
-import '../../main.dart';
 import '../../widgets/auth/auth_check_tile.dart';
+import '../../widgets/auth/auth_shell.dart';
+
 import '../../core/app_colors.dart';
+import '../../core/date_helpers.dart';
+import '../../core/legal_texts.dart';
+
+import '../legal/legal_text_page.dart';
+import 'auth_wrapper.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -131,7 +137,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const VerifyEmailScreen()),
+        MaterialPageRoute(builder: (_) =>  VerifyEmailScreen()),
       );
     } catch (_) {
       if (!mounted) return;
@@ -235,7 +241,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const LegalTextPage(
+                    builder: (_) => LegalTextPage(
                       title: "Nutzungsbedingungen",
                       text: termsText,
                     ),

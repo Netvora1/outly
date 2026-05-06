@@ -35,7 +35,7 @@ Account löschen:
 Du kannst deinen Account in den Einstellungen löschen. Dabei wird dein User-Profil anonymisiert oder entfernt. Manche Inhalte können aus Sicherheits- oder Nachweisgründen vorübergehend gespeichert bleiben.
 
 Kontakt:
-outly@gmail.com
+support@outly.site
 """;
 
 const String termsText = """
@@ -77,7 +77,7 @@ Creator-Funktionen können Werbung, Empfehlungen oder Einnahmen enthalten. Eine 
 Accounts können bei Missbrauch, falschen Angaben oder gefährlichem Verhalten gesperrt oder gelöscht werden.
 
 Kontakt:
-outly@gmail.com
+support@outly.site
 """;
 
 const String imprintText = """
@@ -95,7 +95,7 @@ Ort:
 Niederösterreich, Österreich
 
 Kontakt:
-outly@gmail.com
+support@outly.site
 
 Haftungshinweis:
 Outly ist eine Plattform zur Erstellung und Entdeckung von Aktivitäten.
@@ -126,7 +126,7 @@ Nicht erlaubt:
 Outly kann Accounts prüfen, sperren oder löschen, wenn gegen Regeln verstoßen wird.
 
 Kontakt für Meldungen:
-outly@gmail.com
+support@outly.site
 """;
 
 const String aboutText = """

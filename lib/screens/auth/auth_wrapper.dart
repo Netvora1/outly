@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'login_screen.dart';
-import '../../core/app_colors.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../../main.dart';
+import '../../core/app_colors.dart';
+import '../../widgets/auth/gradient_button.dart';
+import '../../widgets/auth/outly_logo.dart';
+import '../../widgets/auth/auth_shell.dart';
+import '../main/main_navigation.dart';
+import 'login_screen.dart';
 
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
@@ -15,8 +19,8 @@ class AuthWrapper extends StatelessWidget {
       builder: (context, snap) {
         final user = snap.data;
 
-        if (user == null) return  LoginScreen();
-        if (!user.emailVerified) return const VerifyEmailScreen();
+        if (user == null) return LoginScreen();
+        if (!user.emailVerified) return VerifyEmailScreen();
 
         return FutureBuilder<DocumentSnapshot>(
           future: FirebaseFirestore.instance.collection("users").doc(user.uid).get(),
@@ -34,7 +38,7 @@ class AuthWrapper extends StatelessWidget {
               return const BannedScreen();
             }
 
-            return const MainNavigation();
+            return MainNavigation();
           },
         );
       },
@@ -77,7 +81,6 @@ class BannedScreen extends StatelessWidget {
     );
   }
 }
-
 
 class VerifyEmailScreen extends StatefulWidget {
   const VerifyEmailScreen({super.key});
@@ -134,7 +137,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const OutlyLogo(big: true),
+          OutlyLogo(big: true),
           const SizedBox(height: 26),
 
           Container(
@@ -212,38 +215,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class AuthShell extends StatelessWidget {
-  final Widget child;
-  final bool showBack;
-
-  const AuthShell({
-    super.key,
-    required this.child,
-    this.showBack = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: C.bg,
-      appBar: showBack ? AppBar(backgroundColor: C.bg, elevation: 0) : null,
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment.topCenter,
-            radius: 1.2,
-            colors: [C.purple.withOpacity(0.22), C.bg],
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: child,
-        ),
       ),
     );
   }

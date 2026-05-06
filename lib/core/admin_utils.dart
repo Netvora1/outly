@@ -1,8 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:clipza/core/admin.dart';
 
 const String adminUid = "roduqZRk4GgXLCQIZGIFAWN0UUg1";
 
 bool isAdminUser() {
-  return FirebaseAuth.instance.currentUser?.uid == adminUid;
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+  print("roduqZRk4GgXLCQIZGIFAWN0UUg1: $uid");
+  return uid == adminUid;
 }

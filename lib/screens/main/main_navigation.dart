@@ -5,7 +5,8 @@ import '../home/home_screen.dart';
 import '../create/create_activity_screen.dart';
 import '../map/explore_map_screen.dart';
 import '../social/chats_friends_story_screen.dart';
-import '../profile/profile_screen.dart';
+import '../profile/user_profile_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -17,12 +18,12 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int index = 0;
 
-  final screens = const [
+  final screens = [
     HomeScreen(),
     ExploreMapScreen(),
     CreateActivityScreen(),
     ChatsFriendsStoryScreen(),
-    ProfileScreen(),
+    ProfileScreen(userId: FirebaseAuth.instance.currentUser!.uid),
   ];
 
   void changeTab(int i) {

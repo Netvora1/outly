@@ -13,9 +13,15 @@ import '../../widgets/common/info_card.dart';
 import '../../widgets/common/outly_avatar.dart';
 import '../../widgets/common/verified_name.dart';
 import '../../widgets/auth/gradient_button.dart';
+import '../../core/safety_utils.dart';
+import '../../widgets/common/mini_badge.dart';
+import '../../widgets/common/segment_button.dart';
+import '../home/home_screen.dart';
 
-import '../profile/profile_screen.dart';
-
+import '../profile/user_profile_screen.dart';
+import '../../widgets/common/mini_badge.dart';
+import '../../widgets/auth/outly_logo.dart';
+import '../profile/user_profile_screen.dart';
 
 class ChatTile extends StatelessWidget {
   final Color color;
@@ -287,7 +293,7 @@ class FriendUserCard extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => UserProfileScreen(userId: userId),
+                  builder: (_) => ProfileScreen(userId: userId)
                 ),
               );
             },
@@ -305,7 +311,7 @@ class FriendUserCard extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => UserProfileScreen(userId: userId),
+                    builder: (_) => ProfileScreen(userId: userId)
                   ),
                 );
               },
@@ -338,7 +344,7 @@ class FriendUserCard extends StatelessWidget {
                         color: color,
                       ),
                       if (followsBack)
-                        const MiniBadge(
+                        MiniBadge(
                           text: "folgt dir",
                           icon: Icons.favorite,
                           color: C.pink,
@@ -380,7 +386,7 @@ class FriendUserCard extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => UserProfileScreen(userId: userId),
+                        builder: (_) => ProfileScreen(userId: userId)
                       ),
                     );
                   },
@@ -485,7 +491,7 @@ class FriendsSearch extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => UserProfileScreen(userId: doc.id),
+                builder: (_) => ProfileScreen(userId: doc.id),
               ),
             );
           },
@@ -652,7 +658,7 @@ class _ChatsFriendsStoryScreenState extends State<ChatsFriendsStoryScreen> {
                 children: [
                   Row(
                     children: [
-                      const OutlyLogo(),
+                     OutlyLogo(),
                       const SizedBox(width: 12),
                       const Expanded(
                         child: Column(
@@ -706,7 +712,7 @@ class _ChatsFriendsStoryScreenState extends State<ChatsFriendsStoryScreen> {
             ),
 
             const SizedBox(height: 12),
-            const InstagramStoryBar(),
+           
             const SizedBox(height: 14),
 
             if (tab == 0)

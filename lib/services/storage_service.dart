@@ -1,17 +1,22 @@
 import 'dart:typed_data';
-
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/material.dart';
 
 Future<String?> uploadImageBytes({
   required Uint8List bytes,
   required String path,
 }) async {
-  final ref = FirebaseStorage.instance.ref(path);
+  try {
+    final ref = FirebaseStorage.instance.ref().child(path);
 
-  await ref.putData(
-    bytes,
-    SettableMetadata(contentType: "image/jpeg"),
-  );
+    final task = await ref.putData(
+      bytes,
+      SettableMetadata(contentType: "image/jpeg"),
+    );
 
-  return ref.getDownloadURL();
+    return await task.ref.getDownloadURL();
+  } catch (e) {
+    debugPrint("Upload Fehler: $e");
+    return null;
+  }
 }

@@ -11,7 +11,6 @@ import '../../widgets/auth/outly_logo.dart';
 import '../../widgets/common/info_card.dart';
 import '../home/home_screen.dart';
 
-
 class ExploreMapScreen extends StatefulWidget {
   const ExploreMapScreen({super.key});
 
@@ -37,7 +36,31 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
     "Gym",
   ];
 
-  
+  Future<void> loadMyPosition() async {
+    setState(() => loadingLocation = true);
+
+    final position = await getUserPosition();
+
+    if (!mounted) return;
+
+    if (position != null) {
+      final point = LatLng(position.latitude, position.longitude);
+
+      setState(() {
+        myPosition = point;
+        loadingLocation = false;
+      });
+
+      mapController.move(point, 13);
+    } else {
+      setState(() => loadingLocation = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Standort konnte nicht geladen werden")),
+      );
+    }
+  }
+
   LatLng activityPoint(Map<String, dynamic> data) {
     final lat = data["lat"];
     final lng = data["lng"];
@@ -46,7 +69,16 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
       return LatLng(lat.toDouble(), lng.toDouble());
     }
 
-    return placeToLatLng(data["place"] ?? "");
+    return const LatLng(48.2082, 16.3738);
+  }
+
+  bool matchesRadius(Map<String, dynamic> data) {
+    if (myPosition == null) return true;
+
+    final point = activityPoint(data);
+    final km = distanceInKm(myPosition!, point);
+
+    return km <= radiusKm;
   }
 
   bool canSeeActivity(Map<String, dynamic> data, String uid) {
@@ -70,8 +102,8 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
   }
 
   bool matchesCategory(Map<String, dynamic> data) {
-    final cat = (data["category"] ?? "").toString().trim().toLowerCase();
-    final selected = selectedCategory.trim().toLowerCase();
+    final cat = (data["category"] ?? "").toString().toLowerCase();
+    final selected = selectedCategory.toLowerCase();
 
     return selected == "alle" || cat == selected;
   }
@@ -91,14 +123,6 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
         description.contains(q);
   }
 
-  double zoomForRadius(double radius) {
-    if (radius <= 5) return 13.5;
-    if (radius <= 10) return 12.5;
-    if (radius <= 20) return 11.5;
-    if (radius <= 50) return 10;
-    return 8.8;
-  }
-
   String distanceText(Map<String, dynamic> data) {
     if (myPosition == null) return "Standort aus";
 
@@ -109,10 +133,18 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
     return "${km.toStringAsFixed(1)} km entfernt";
   }
 
+  double zoomForRadius(double radius) {
+    if (radius <= 5) return 13.5;
+    if (radius <= 10) return 12.5;
+    if (radius <= 20) return 11.5;
+    if (radius <= 50) return 10;
+    return 8.8;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final center = myPosition ?? const LatLng(48.2082, 16.3738);
     final uid = FirebaseAuth.instance.currentUser!.uid;
+    final center = myPosition ?? const LatLng(48.2082, 16.3738);
 
     return Scaffold(
       backgroundColor: C.bg,
@@ -124,7 +156,9 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
               .snapshots(),
           builder: (context, snap) {
             if (!snap.hasData) {
-              return const Center(child: CircularProgressIndicator(color: C.cyan));
+              return const Center(
+                child: CircularProgressIndicator(color: C.cyan),
+              );
             }
 
             final docs = snap.data!.docs.where((doc) {
@@ -150,51 +184,74 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
 
             return ListView(
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 150),
               children: [
-                Row(
-                  children: [
-                    const OutlyLogo(),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Entdecken 🗺️",
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(34),
+                    gradient: LinearGradient(
+                      colors: [
+                        C.purple.withOpacity(0.62),
+                        C.card,
+                        C.cyan.withOpacity(0.16),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    border: Border.all(color: C.cyan.withOpacity(0.25)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: C.cyan.withOpacity(0.16),
+                        blurRadius: 28,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      const OutlyLogo(),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Entdecken 🗺️",
+                              style: TextStyle(
+                                fontSize: 30,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
-                          SizedBox(height: 3),
-                          Text(
-                            "Finde Events auf deiner Map.",
-                            style: TextStyle(color: Colors.white54),
-                          ),
-                        ],
+                            SizedBox(height: 4),
+                            Text(
+                              "Finde Events auf deiner Map.",
+                              style: TextStyle(color: Colors.white60),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    CircleAvatar(
-                      backgroundColor: C.card,
-                      child: IconButton(
-                        icon: loadingLocation
-                            ? const SizedBox(
-                                width: 17,
-                                height: 17,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: C.cyan,
-                                ),
-                              )
-                            : const Icon(Icons.my_location, color: C.cyan),
-                        onPressed: loadingLocation ? null : loadMyPosition,
+                      CircleAvatar(
+                        backgroundColor: C.card2,
+                        child: IconButton(
+                          icon: loadingLocation
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    color: C.cyan,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.my_location, color: C.cyan),
+                          onPressed: loadingLocation ? null : loadMyPosition,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
 
                 TextField(
                   onChanged: (v) => setState(() => search = v),
@@ -211,13 +268,13 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
                   clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(
                     color: C.card,
-                    borderRadius: BorderRadius.circular(32),
+                    borderRadius: BorderRadius.circular(34),
                     border: Border.all(color: C.cyan.withOpacity(0.30)),
                     boxShadow: [
                       BoxShadow(
-                        color: C.cyan.withOpacity(0.16),
-                        blurRadius: 28,
-                        offset: const Offset(0, 10),
+                        color: C.cyan.withOpacity(0.18),
+                        blurRadius: 32,
+                        offset: const Offset(0, 12),
                       ),
                     ],
                   ),
@@ -235,8 +292,8 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
                                 "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                             userAgentPackageName: "com.outly.app",
                             maxZoom: 18,
-                            keepBuffer: 2,
                           ),
+
                           CircleLayer(
                             circles: [
                               if (myPosition != null)
@@ -245,11 +302,12 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
                                   radius: radiusKm * 1000,
                                   useRadiusInMeter: true,
                                   color: C.cyan.withOpacity(0.08),
-                                  borderColor: C.cyan.withOpacity(0.50),
+                                  borderColor: C.cyan.withOpacity(0.55),
                                   borderStrokeWidth: 2,
                                 ),
                             ],
                           ),
+
                           MarkerLayer(
                             markers: [
                               if (myPosition != null)
@@ -296,13 +354,11 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
                                       showModalBottomSheet(
                                         context: context,
                                         backgroundColor: Colors.transparent,
-                                        builder: (_) {
-                                          return _MapPreviewSheet(
-                                            activityId: doc.id,
-                                            data: data,
-                                            distance: distanceText(data),
-                                          );
-                                        },
+                                        builder: (_) => _MapPreviewSheet(
+                                          activityId: doc.id,
+                                          data: data,
+                                          distance: distanceText(data),
+                                        ),
                                       );
                                     },
                                     child: Container(
@@ -338,7 +394,8 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
                                               right: 0,
                                               bottom: 0,
                                               child: Container(
-                                                padding: const EdgeInsets.symmetric(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
                                                   horizontal: 5,
                                                   vertical: 2,
                                                 ),
@@ -411,13 +468,17 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
                   children: [
                     const Text(
                       "Radius",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const Spacer(),
                     Text(
                       "${radiusKm.round()} km",
                       style: const TextStyle(
                         color: C.cyan,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -441,13 +502,13 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
                   },
                 ),
 
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
 
                 SizedBox(
-                  height: 44,
+                  height: 50,
                   child: ListView.builder(
-                    physics: const BouncingScrollPhysics(),
                     scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
                     itemCount: categories.length,
                     itemBuilder: (context, i) {
                       final c = categories[i];
@@ -458,15 +519,23 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
                         onTap: () => setState(() => selectedCategory = c),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 180),
-                          margin: const EdgeInsets.only(right: 9),
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          margin: const EdgeInsets.only(right: 10),
+                          padding: const EdgeInsets.symmetric(horizontal: 15),
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(18),
                             color: active ? color : C.card,
+                            borderRadius: BorderRadius.circular(18),
                             border: Border.all(
-                              color: active ? color : color.withOpacity(0.4),
+                              color: active ? color : color.withOpacity(0.45),
                             ),
+                            boxShadow: active
+                                ? [
+                                    BoxShadow(
+                                      color: color.withOpacity(0.28),
+                                      blurRadius: 18,
+                                    ),
+                                  ]
+                                : [],
                           ),
                           child: Row(
                             children: [
@@ -479,7 +548,8 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
                               Text(
                                 c,
                                 style: TextStyle(
-                                  color: active ? Colors.black : Colors.white70,
+                                  color:
+                                      active ? Colors.black : Colors.white70,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -491,14 +561,17 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 22),
 
                 Row(
                   children: [
                     const Expanded(
                       child: Text(
                         "Events auf der Map",
-                        style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 25,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                     Text(
@@ -514,11 +587,9 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
                 const SizedBox(height: 12),
 
                 if (docs.isEmpty)
-                  InfoCard(
+                  const InfoCard(
                     title: "Keine Events gefunden",
-                    text: myPosition == null
-                        ? "Aktiviere deinen Standort oder ändere die Filter."
-                        : "Im Umkreis von ${radiusKm.round()} km ist gerade nichts Passendes.",
+                    text: "Aktiviere deinen Standort oder ändere die Filter.",
                   )
                 else
                   ...docs.map((doc) {
@@ -546,67 +617,6 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
   }
 }
 
-class _ExploreMiniStat extends StatelessWidget {
-  final String value;
-  final String label;
-  final Color color;
-  final IconData icon;
-
-  const _ExploreMiniStat({
-    required this.value,
-    required this.label,
-    required this.color,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(width: 7),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: TextStyle(
-                    color: color,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
-                ),
-                Text(
-                  label,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white54,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ExploreDivider extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      height: 30,
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-      color: Colors.white.withOpacity(0.10),
-    );
-  }
-}
-
 class _MapPreviewSheet extends StatelessWidget {
   final String activityId;
   final Map<String, dynamic> data;
@@ -624,34 +634,7 @@ class _MapPreviewSheet extends StatelessWidget {
     final color = catColor(category);
     final participants = List.from(data["participants"] ?? []);
     final max = data["maxPeople"] ?? 0;
-    final imageUrl = (data["imageUrl"] ?? "").toString();
     final full = max > 0 && participants.length >= max;
-
-    Widget fallbackImage({bool broken = false}) {
-      return Container(
-        height: 150,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(22),
-          gradient: LinearGradient(
-            colors: [
-              color.withOpacity(0.82),
-              C.card,
-              Colors.black,
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Center(
-          child: Icon(
-            broken ? Icons.broken_image : catIcon(category),
-            color: Colors.white,
-            size: 58,
-          ),
-        ),
-      );
-    }
 
     return Container(
       margin: const EdgeInsets.all(14),
@@ -681,95 +664,37 @@ class _MapPreviewSheet extends StatelessWidget {
                 borderRadius: BorderRadius.circular(999),
               ),
             ),
-
             const SizedBox(height: 16),
-
-            ClipRRect(
-              borderRadius: BorderRadius.circular(22),
-              child: imageUrl.isNotEmpty
-                  ? Image.network(
-                      imageUrl,
-                      height: 150,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => fallbackImage(broken: true),
-                    )
-                  : fallbackImage(),
-            ),
-
-            const SizedBox(height: 16),
-
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.18),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: color.withOpacity(0.45)),
-                  ),
-                  child: Text(
-                    category,
-                    style: TextStyle(color: color, fontWeight: FontWeight.bold),
-                  ),
+                CircleAvatar(
+                  backgroundColor: color,
+                  radius: 28,
+                  child: Icon(catIcon(category), color: Colors.white),
                 ),
-
-                const SizedBox(width: 8),
-
-                if (full)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                    decoration: BoxDecoration(
-                      color: Colors.redAccent.withOpacity(0.18),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: Colors.redAccent.withOpacity(0.45)),
-                    ),
-                    child: const Text(
-                      "Voll",
-                      style: TextStyle(
-                        color: Colors.redAccent,
-                        fontWeight: FontWeight.bold,
-                      ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    data["title"] ?? "Event",
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 23,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-
-                const Spacer(),
-
-                Text(
-                  distance,
-                  style: const TextStyle(color: Colors.white54),
-                  textAlign: TextAlign.right,
                 ),
               ],
             ),
-
             const SizedBox(height: 12),
-
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                data["title"] ?? "",
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 25,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                "📍 ${data["place"] ?? ""}\n⏰ ${data["date"] ?? ""} ${data["time"] ?? ""}",
+                "📍 ${data["place"] ?? ""}\n⏰ ${data["date"] ?? ""} ${data["time"] ?? ""}\n📏 $distance",
                 style: const TextStyle(color: Colors.white70, height: 1.45),
               ),
             ),
-
             const SizedBox(height: 14),
-
             Row(
               children: [
                 Icon(Icons.groups_2_outlined, color: color),
@@ -783,9 +708,7 @@ class _MapPreviewSheet extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-
                 const Spacer(),
-
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: full ? Colors.white24 : color,
@@ -799,13 +722,14 @@ class _MapPreviewSheet extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => ActivityDetailScreen(activityId: activityId),
+                        builder: (_) =>
+                            ActivityDetailScreen(activityId: activityId),
                       ),
                     );
                   },
-                  child: const Text(
-                    "Ansehen",
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                  child: Text(
+                    full ? "Voll" : "Ansehen",
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
               ],

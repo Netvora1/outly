@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
+import '../../core/app_colors.dart';
 import '../../widgets/auth/gradient_button.dart';
 import '../../widgets/auth/outly_logo.dart';
 import '../../widgets/auth/auth_hero_card.dart';
-import '../../widgets/common/info_card.dart';
-import '../../core/app_colors.dart';
+import '../../widgets/auth/auth_shell.dart';
 
 import 'register_screen.dart';
-import '../../main.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

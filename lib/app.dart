@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import 'screens/auth/auth_wrapper.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+import 'screens/auth/login_screen.dart';
+import 'screens/main/main_navigation.dart';
 
 class OutlyApp extends StatelessWidget {
   const OutlyApp({super.key});
@@ -7,10 +10,38 @@ class OutlyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Outly',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark(),
-      home: AuthWrapper(),
+      title: 'Outly',
+      theme: ThemeData(
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: const Color(0xFF0B0B0F),
+        fontFamily: 'Inter',
+      ),
+      home: const AuthGate(),
+    );
+  }
+}
+
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (snap.hasData) {
+          return MainNavigation();
+        }
+
+        return const LoginScreen();
+      },
     );
   }
 }

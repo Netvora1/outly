@@ -1,16 +1,19 @@
+import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/event_utils.dart';
+import '../../services/notification_service.dart';
 import '../../widgets/auth/gradient_button.dart';
+import '../../widgets/auth/outly_logo.dart';
 import '../../widgets/common/circle_icon_button.dart';
 import '../../widgets/common/info_card.dart';
+import '../../widgets/common/message_input.dart';
 import '../../widgets/common/outly_avatar.dart';
 import '../../widgets/common/verified_name.dart';
-import '../profile/user_profile_screen.dart';
-import '../../widgets/auth/outly_logo.dart';
+import '../../services/notification_service.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -476,49 +479,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
-
-bool isEventActive(Map<String, dynamic> data) {
-  final deleteAt = data["deleteAt"];
-  if (deleteAt is Timestamp) {
-    return deleteAt.toDate().isAfter(DateTime.now());
-  }
-  return true;
-}
-
-Color catColor(String cat) {
-  switch (cat) {
-    case "Sport":
-      return C.green;
-    case "Chill":
-      return C.purple2;
-    case "Party":
-      return C.pink;
-    case "Gaming":
-      return Colors.blueAccent;
-    case "Gym":
-      return C.cyan;
-    default:
-      return C.purple;
-  }
-}
-
-IconData catIcon(String cat) {
-  switch (cat) {
-    case "Sport":
-      return Icons.sports_soccer;
-    case "Chill":
-      return Icons.local_fire_department;
-    case "Party":
-      return Icons.celebration;
-    case "Gaming":
-      return Icons.sports_esports;
-    case "Gym":
-      return Icons.fitness_center;
-    default:
-      return Icons.explore;
-  }
-}
-
 
 class _HomeTrustPill extends StatelessWidget {
   final IconData icon;
