@@ -21,6 +21,7 @@ import '../home/home_screen.dart';
 import '../profile/user_profile_screen.dart';
 import '../../widgets/common/mini_badge.dart';
 import '../../widgets/auth/outly_logo.dart';
+import '../../widgets/story/instagram_story_bar.dart';
 
 class ChatTile extends StatelessWidget {
   final Color color;
@@ -711,7 +712,9 @@ class _ChatsFriendsStoryScreenState extends State<ChatsFriendsStoryScreen> {
             ),
 
             const SizedBox(height: 12),
-           
+            
+            const InstagramStoryBar(),
+
             const SizedBox(height: 14),
 
             if (tab == 0)
