@@ -21,7 +21,6 @@ import '../home/home_screen.dart';
 import '../profile/user_profile_screen.dart';
 import '../../widgets/common/mini_badge.dart';
 import '../../widgets/auth/outly_logo.dart';
-import '../profile/user_profile_screen.dart';
 
 class ChatTile extends StatelessWidget {
   final Color color;

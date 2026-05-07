@@ -6,11 +6,9 @@ import 'package:image_cropper/image_cropper.dart';
 
 import '../../core/app_colors.dart';
 import '../../services/storage_service.dart';
-
 import '../../widgets/auth/gradient_button.dart';
 import '../../widgets/common/outly_avatar.dart';
 import '../../widgets/common/verified_name.dart';
-
 import 'settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -59,10 +57,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    final uid = user.uid;
-    final picker = ImagePicker();
-
-    final picked = await picker.pickImage(
+    final picked = await ImagePicker().pickImage(
       source: ImageSource.gallery,
       imageQuality: 95,
     );
@@ -81,7 +76,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           backgroundColor: Colors.black,
           activeControlsWidgetColor: C.cyan,
           lockAspectRatio: true,
-          hideBottomControls: false,
         ),
         IOSUiSettings(
           title: "Profilbild anpassen",
@@ -91,17 +85,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         WebUiSettings(
           context: context,
           presentStyle: WebPresentStyle.dialog,
-          size: const CropperSize(
-            width: 420,
-            height: 420,
-          ),
+          size: const CropperSize(width: 420, height: 420),
         ),
       ],
     );
 
     if (cropped == null) return;
 
-    if (!mounted) return;
     setState(() => uploadingImage = true);
 
     try {
@@ -109,134 +99,121 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       final url = await uploadImageBytes(
         bytes: bytes,
-        path: "profile_images/$uid/profile_${DateTime.now().millisecondsSinceEpoch}.jpg",
+        path:
+            "profile_images/${user.uid}/profile_${DateTime.now().millisecondsSinceEpoch}.jpg",
       );
 
       if (url != null && url.trim().isNotEmpty) {
-        await FirebaseFirestore.instance.collection("users").doc(uid).set({
+        await FirebaseFirestore.instance.collection("users").doc(user.uid).set({
           "photoUrl": url.trim(),
           "updatedAt": Timestamp.now(),
         }, SetOptions(merge: true));
       }
 
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            url != null
-                ? "Profilbild aktualisiert ✅"
-                : "Profilbild konnte nicht hochgeladen werden ❌",
-          ),
-        ),
+        const SnackBar(content: Text("Profilbild aktualisiert 🔥")),
       );
     } catch (e) {
       debugPrint("Profilbild Upload Fehler: $e");
-
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Fehler beim Profilbild Upload ❌"),
-        ),
+        const SnackBar(content: Text("Profilbild konnte nicht gespeichert werden.")),
       );
     } finally {
-      if (mounted) {
-        setState(() => uploadingImage = false);
-      }
+      if (mounted) setState(() => uploadingImage = false);
     }
   }
 
   void openEdit(Map<String, dynamic> data) {
-    username.text = data["username"] ?? "";
-    city.text = data["city"] ?? "";
-    bio.text = data["bio"] ?? "";
+    username.text = (data["username"] ?? "").toString();
+    city.text = (data["city"] ?? "").toString();
+    bio.text = (data["bio"] ?? "").toString();
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: C.bg,
+      backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) {
-        return SafeArea(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.only(
-              left: 22,
-              right: 22,
-              top: 22,
-              bottom: MediaQuery.of(context).viewInsets.bottom + 30,
-            ),
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 14,
+            right: 14,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 14,
+          ),
+          child: SafeArea(
             child: Container(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: C.card,
-                borderRadius: BorderRadius.circular(30),
-                border: Border.all(color: C.cyan.withOpacity(0.22)),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 45,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: Colors.white24,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  const Text(
-                    "Profil bearbeiten",
-                    style: TextStyle(
-                      color: C.cyan,
-                      fontSize: 25,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  TextField(
-                    controller: username,
-                    decoration: const InputDecoration(
-                      hintText: "Benutzername",
-                      prefixIcon: Icon(Icons.person_outline, color: C.cyan),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: city,
-                    decoration: const InputDecoration(
-                      hintText: "Stadt / Land",
-                      prefixIcon: Icon(Icons.location_on_outlined, color: C.cyan),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: bio,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      hintText: "Bio",
-                      prefixIcon: Icon(Icons.notes_outlined, color: C.cyan),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  GradientButton(
-                    text: "Speichern",
-                    onPressed: () async {
-                      final uid = FirebaseAuth.instance.currentUser!.uid;
-
-                      await FirebaseFirestore.instance.collection("users").doc(uid).set({
-                        "username": username.text.trim(),
-                        "city": city.text.trim(),
-                        "bio": bio.text.trim(),
-                        "updatedAt": Timestamp.now(),
-                      }, SetOptions(merge: true));
-
-                      if (!mounted) return;
-
-                      Navigator.pop(context);
-                      setState(() {});
-                    },
+                color: C.bg,
+                borderRadius: BorderRadius.circular(34),
+                border: Border.all(color: C.cyan.withOpacity(0.28)),
+                boxShadow: [
+                  BoxShadow(
+                    color: C.cyan.withOpacity(0.18),
+                    blurRadius: 34,
                   ),
                 ],
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 46,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    const Text(
+                      "Profil bearbeiten",
+                      style: TextStyle(
+                        color: C.cyan,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    _OutlyField(
+                      controller: username,
+                      hint: "Benutzername",
+                      icon: Icons.person_rounded,
+                    ),
+                    const SizedBox(height: 12),
+                    _OutlyField(
+                      controller: city,
+                      hint: "Stadt / Land",
+                      icon: Icons.location_on_rounded,
+                    ),
+                    const SizedBox(height: 12),
+                    _OutlyField(
+                      controller: bio,
+                      hint: "Bio",
+                      icon: Icons.notes_rounded,
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 18),
+                    GradientButton(
+                      text: "Speichern",
+                      onPressed: () async {
+                        final uid = FirebaseAuth.instance.currentUser!.uid;
+
+                        await FirebaseFirestore.instance.collection("users").doc(uid).set({
+                          "username": username.text.trim(),
+                          "city": city.text.trim(),
+                          "bio": bio.text.trim(),
+                          "updatedAt": Timestamp.now(),
+                        }, SetOptions(merge: true));
+
+                        if (!mounted) return;
+                        Navigator.pop(context);
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -251,110 +228,107 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: C.bg,
+      backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) {
         return StatefulBuilder(
           builder: (context, setModalState) {
-            return SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
+            return Padding(
+              padding: const EdgeInsets.all(14),
+              child: SafeArea(
                 child: Container(
-                  padding: const EdgeInsets.all(18),
+                  padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: C.card,
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(color: C.cyan.withOpacity(0.22)),
+                    color: C.bg,
+                    borderRadius: BorderRadius.circular(34),
+                    border: Border.all(color: C.purple.withOpacity(0.32)),
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 45,
-                        height: 5,
-                        decoration: BoxDecoration(
-                          color: Colors.white24,
-                          borderRadius: BorderRadius.circular(999),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 46,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            color: Colors.white24,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 18),
-                      const Text(
-                        "Vibes ändern",
-                        style: TextStyle(
-                          color: C.cyan,
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
+                        const SizedBox(height: 18),
+                        const Text(
+                          "Deine Vibes",
+                          style: TextStyle(
+                            color: C.cyan,
+                            fontSize: 27,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        "Wähle, was zu dir passt.",
-                        style: TextStyle(color: Colors.white60),
-                      ),
-                      const SizedBox(height: 20),
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: allVibes.map((vibe) {
-                          final active = selected.contains(vibe);
+                        const SizedBox(height: 8),
+                        const Text(
+                          "Wähle, was zu dir passt.",
+                          style: TextStyle(color: Colors.white60),
+                        ),
+                        const SizedBox(height: 20),
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: allVibes.map((vibe) {
+                            final active = selected.contains(vibe);
 
-                          return GestureDetector(
-                            onTap: () {
-                              setModalState(() {
-                                if (active) {
-                                  selected.remove(vibe);
-                                } else {
-                                  selected.add(vibe);
-                                }
-                              });
-                            },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 180),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 15,
-                                vertical: 11,
-                              ),
-                              decoration: BoxDecoration(
-                                color: active ? C.cyan : C.card2,
-                                borderRadius: BorderRadius.circular(18),
-                                border: Border.all(
-                                  color: active ? C.cyan : Colors.white12,
+                            return GestureDetector(
+                              onTap: () {
+                                setModalState(() {
+                                  active ? selected.remove(vibe) : selected.add(vibe);
+                                });
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 15,
+                                  vertical: 11,
                                 ),
-                                boxShadow: active
-                                    ? [
-                                        BoxShadow(
-                                          color: C.cyan.withOpacity(0.35),
-                                          blurRadius: 18,
-                                        ),
-                                      ]
-                                    : [],
-                              ),
-                              child: Text(
-                                "#$vibe",
-                                style: TextStyle(
-                                  color: active ? Colors.black : Colors.white70,
-                                  fontWeight: FontWeight.bold,
+                                decoration: BoxDecoration(
+                                  color: active ? C.cyan : C.card,
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                    color: active ? C.cyan : Colors.white12,
+                                  ),
+                                  boxShadow: active
+                                      ? [
+                                          BoxShadow(
+                                            color: C.cyan.withOpacity(0.35),
+                                            blurRadius: 18,
+                                          ),
+                                        ]
+                                      : [],
+                                ),
+                                child: Text(
+                                  "#$vibe",
+                                  style: TextStyle(
+                                    color: active ? Colors.black : Colors.white70,
+                                    fontWeight: FontWeight.w900,
+                                  ),
                                 ),
                               ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                      const SizedBox(height: 24),
-                      GradientButton(
-                        text: "Vibes speichern",
-                        onPressed: () async {
-                          await FirebaseFirestore.instance.collection("users").doc(uid).set({
-                            "interests": selected.toList(),
-                            "updatedAt": Timestamp.now(),
-                          }, SetOptions(merge: true));
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 24),
+                        GradientButton(
+                          text: "Vibes speichern",
+                          onPressed: () async {
+                            await FirebaseFirestore.instance.collection("users").doc(uid).set({
+                              "interests": selected.toList(),
+                              "updatedAt": Timestamp.now(),
+                            }, SetOptions(merge: true));
 
-                          if (!context.mounted) return;
-                          Navigator.pop(context);
-                          setState(() {});
-                        },
-                      ),
-                    ],
+                            if (!context.mounted) return;
+                            Navigator.pop(context);
+                          },
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -387,14 +361,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             slivers: [
               SliverAppBar(
                 backgroundColor: C.bg,
-                expandedHeight: 350,
+                expandedHeight: 380,
                 pinned: true,
                 elevation: 0,
                 title: Text(isMe ? "Mein Profil" : "@${data["username"] ?? "user"}"),
                 actions: [
                   if (isMe)
                     IconButton(
-                      icon: const Icon(Icons.settings_outlined),
+                      icon: const Icon(Icons.settings_rounded),
                       onPressed: () {
                         Navigator.push(
                           context,
@@ -463,9 +437,9 @@ class ProfileHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final username = data["username"] ?? "user";
-    final bio = data["bio"] ?? "Neu bei Outly 🔥";
-    final city = data["city"] ?? "Keine Stadt";
+    final username = (data["username"] ?? "user").toString();
+    final bio = (data["bio"] ?? "Neu bei Outly 🔥").toString();
+    final city = (data["city"] ?? "Keine Stadt").toString();
     final photoUrl = (data["photoUrl"] ?? "").toString().trim();
     final verified = data["verified"] == true;
     final creator = data["creator"] == true;
@@ -477,8 +451,8 @@ class ProfileHero extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                C.purple.withOpacity(0.95),
-                C.pink.withOpacity(0.45),
+                C.purple.withOpacity(0.98),
+                C.pink.withOpacity(0.48),
                 C.cyan.withOpacity(0.30),
                 C.bg,
               ],
@@ -488,12 +462,31 @@ class ProfileHero extends StatelessWidget {
           ),
         ),
         Positioned(
-          right: -40,
-          top: 60,
+          right: -55,
+          top: 70,
           child: Icon(
-            Icons.auto_awesome,
-            size: 190,
+            Icons.auto_awesome_rounded,
+            size: 210,
             color: Colors.white.withOpacity(0.07),
+          ),
+        ),
+        Positioned(
+          left: -50,
+          top: 90,
+          child: Container(
+            height: 180,
+            width: 180,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: C.cyan.withOpacity(0.11),
+              boxShadow: [
+                BoxShadow(
+                  color: C.cyan.withOpacity(0.22),
+                  blurRadius: 90,
+                  spreadRadius: 20,
+                ),
+              ],
+            ),
           ),
         ),
         Positioned.fill(
@@ -502,7 +495,7 @@ class ProfileHero extends StatelessWidget {
               gradient: LinearGradient(
                 colors: [
                   Colors.black.withOpacity(0.05),
-                  C.bg.withOpacity(0.15),
+                  C.bg.withOpacity(0.16),
                   C.bg,
                 ],
                 begin: Alignment.topCenter,
@@ -523,8 +516,8 @@ class ProfileHero extends StatelessWidget {
                   alignment: Alignment.center,
                   children: [
                     Container(
-                      width: 128,
-                      height: 128,
+                      width: 134,
+                      height: 134,
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
@@ -533,19 +526,19 @@ class ProfileHero extends StatelessWidget {
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: C.cyan.withOpacity(0.50),
+                            color: C.cyan.withOpacity(0.48),
                             blurRadius: 42,
                           ),
                         ],
                       ),
-                      child: OutlyAvatar(photoUrl: photoUrl, radius: 60),
+                      child: OutlyAvatar(photoUrl: photoUrl, radius: 62),
                     ),
                     if (uploadingImage)
                       Container(
-                        width: 128,
-                        height: 128,
+                        width: 134,
+                        height: 134,
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.45),
+                          color: Colors.black.withOpacity(0.50),
                           shape: BoxShape.circle,
                         ),
                         child: const Center(
@@ -557,29 +550,29 @@ class ProfileHero extends StatelessWidget {
                         right: 0,
                         bottom: 8,
                         child: CircleAvatar(
-                          radius: 19,
+                          radius: 20,
                           backgroundColor: C.cyan,
-                          child: const Icon(Icons.camera_alt, color: Colors.black, size: 18),
+                          child: const Icon(Icons.camera_alt_rounded, color: Colors.black, size: 18),
                         ),
                       ),
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 13),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  verifiedName(username, verified, size: 30),
+                  Flexible(child: verifiedName(username, verified, size: 30)),
                   if (creator) ...[
                     const SizedBox(width: 8),
-                    const Icon(Icons.workspace_premium, color: C.orange, size: 25),
+                    const Icon(Icons.workspace_premium_rounded, color: C.orange, size: 25),
                   ],
                 ],
               ),
               const SizedBox(height: 6),
               Text(
                 city,
-                style: const TextStyle(color: Colors.white60, fontWeight: FontWeight.w600),
+                style: const TextStyle(color: Colors.white60, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 10),
               Text(
@@ -615,8 +608,49 @@ class ProfileActionButtons extends StatelessWidget {
     required this.onEdit,
   });
 
+  Future<void> toggleFollow(BuildContext context, bool isFollowing) async {
+    final myUid = FirebaseAuth.instance.currentUser!.uid;
+
+    final myRef = FirebaseFirestore.instance.collection("users").doc(myUid);
+    final otherRef = FirebaseFirestore.instance.collection("users").doc(userId);
+
+    final batch = FirebaseFirestore.instance.batch();
+
+    if (isFollowing) {
+      batch.set(myRef, {
+        "following": FieldValue.arrayRemove([userId]),
+        "updatedAt": Timestamp.now(),
+      }, SetOptions(merge: true));
+
+      batch.set(otherRef, {
+        "followers": FieldValue.arrayRemove([myUid]),
+        "updatedAt": Timestamp.now(),
+      }, SetOptions(merge: true));
+    } else {
+      batch.set(myRef, {
+        "following": FieldValue.arrayUnion([userId]),
+        "updatedAt": Timestamp.now(),
+      }, SetOptions(merge: true));
+
+      batch.set(otherRef, {
+        "followers": FieldValue.arrayUnion([myUid]),
+        "updatedAt": Timestamp.now(),
+      }, SetOptions(merge: true));
+    }
+
+    await batch.commit();
+
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(isFollowing ? "Entfolgt" : "Du folgst jetzt 🔥")),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final myUid = FirebaseAuth.instance.currentUser!.uid;
+
     if (isMe) {
       return Row(
         children: [
@@ -627,50 +661,169 @@ class ProfileActionButtons extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          CircleAvatar(
-            backgroundColor: C.card,
-            child: IconButton(
-              icon: const Icon(Icons.share, color: C.cyan),
-              onPressed: () {},
-            ),
+          _NeonIconButton(
+            icon: Icons.settings_rounded,
+            color: C.purple,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              );
+            },
           ),
         ],
       );
     }
 
-    return Row(
-      children: [
-        Expanded(
-          child: GradientButton(
-            text: "Nachricht",
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => PrivateChatScreen(
-                    otherUserId: userId,
-                    otherUsername: data["username"] ?? "user",
+    final followers = List<String>.from(data["followers"] ?? []);
+    final followsMe = followers.contains(myUid);
+
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection("users").doc(myUid).snapshots(),
+      builder: (context, mySnap) {
+        final myData = mySnap.data?.data() as Map<String, dynamic>? ?? {};
+        final following = List<String>.from(myData["following"] ?? []);
+        final isFollowing = following.contains(userId);
+
+        return Row(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: () => toggleFollow(context, isFollowing),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(22),
+                    gradient: isFollowing
+                        ? null
+                        : const LinearGradient(
+                            colors: [C.cyan, C.purple],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                    color: isFollowing ? C.card : null,
+                    border: Border.all(
+                      color: isFollowing ? C.cyan.withOpacity(0.35) : Colors.transparent,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (isFollowing ? C.cyan : C.purple).withOpacity(0.25),
+                        blurRadius: 24,
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        isFollowing
+                            ? Icons.person_remove_alt_1_rounded
+                            : Icons.person_add_alt_1_rounded,
+                        color: isFollowing ? C.cyan : Colors.black,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        isFollowing ? "Entfolgen" : "Folgen",
+                        style: TextStyle(
+                          color: isFollowing ? C.cyan : Colors.black,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: C.card,
-              foregroundColor: C.cyan,
-              padding: const EdgeInsets.all(15),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              ),
             ),
-            onPressed: () {},
-            icon: const Icon(Icons.person_add_alt_1),
-            label: const Text("Follow"),
-          ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PrivateChatScreen(
+                        otherUserId: userId,
+                        otherUsername: data["username"] ?? "user",
+                      ),
+                    ),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(22),
+                    color: C.card,
+                    border: Border.all(color: C.pink.withOpacity(0.30)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: C.pink.withOpacity(0.18),
+                        blurRadius: 22,
+                      ),
+                    ],
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.chat_bubble_rounded, color: C.pink),
+                      SizedBox(width: 8),
+                      Text(
+                        "Nachricht",
+                        style: TextStyle(
+                          color: C.pink,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            _NeonIconButton(
+              icon: followsMe ? Icons.favorite_rounded : Icons.more_horiz_rounded,
+              color: followsMe ? C.pink : C.orange,
+              onTap: () {},
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _NeonIconButton extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _NeonIconButton({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 52,
+        width: 52,
+        decoration: BoxDecoration(
+          color: C.card,
+          shape: BoxShape.circle,
+          border: Border.all(color: color.withOpacity(0.32)),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.18),
+              blurRadius: 22,
+            ),
+          ],
         ),
-      ],
+        child: Icon(icon, color: color),
+      ),
     );
   }
 }
@@ -691,7 +844,10 @@ class ProfileStats extends StatelessWidget {
     final following = List.from(data["following"] ?? []);
 
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection("activities").where("creatorId", isEqualTo: userId).snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection("activities")
+          .where("creatorId", isEqualTo: userId)
+          .snapshots(),
       builder: (context, snap) {
         final eventCount = snap.data?.docs.length ?? 0;
 
@@ -701,7 +857,7 @@ class ProfileStats extends StatelessWidget {
               child: ProfileStatBox(
                 value: "$eventCount",
                 label: "Events",
-                icon: Icons.local_fire_department,
+                icon: Icons.local_fire_department_rounded,
                 color: C.orange,
               ),
             ),
@@ -710,7 +866,7 @@ class ProfileStats extends StatelessWidget {
               child: ProfileStatBox(
                 value: "${followers.length}",
                 label: "Follower",
-                icon: Icons.groups_2,
+                icon: Icons.groups_2_rounded,
                 color: C.cyan,
               ),
             ),
@@ -718,9 +874,9 @@ class ProfileStats extends StatelessWidget {
             Expanded(
               child: ProfileStatBox(
                 value: "${following.length}",
-                label: "Following",
-                icon: Icons.person_add_alt_1,
-                color: C.purple2,
+                label: "Folgt",
+                icon: Icons.person_add_alt_1_rounded,
+                color: C.purple,
               ),
             ),
           ],
@@ -750,7 +906,7 @@ class ProfileStatBox extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 16),
       decoration: BoxDecoration(
         color: C.card,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: color.withOpacity(0.25)),
         boxShadow: [
           BoxShadow(color: color.withOpacity(0.08), blurRadius: 18),
@@ -762,7 +918,7 @@ class ProfileStatBox extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             value,
-            style: TextStyle(color: color, fontSize: 23, fontWeight: FontWeight.bold),
+            style: TextStyle(color: color, fontSize: 23, fontWeight: FontWeight.w900),
           ),
           Text(label, style: const TextStyle(color: Colors.white54, fontSize: 12)),
         ],
@@ -787,10 +943,10 @@ class ProfileBadges extends StatelessWidget {
       runSpacing: 8,
       alignment: WrapAlignment.center,
       children: [
-        ProfileChip(icon: Icons.shield_outlined, text: "Safety $trust", color: C.cyan),
-        if (verified) const ProfileChip(icon: Icons.verified, text: "Verifiziert", color: Colors.blueAccent),
-        if (creator) const ProfileChip(icon: Icons.workspace_premium, text: "Creator", color: C.orange),
-        const ProfileChip(icon: Icons.public, text: "Real Life", color: C.green),
+        ProfileChip(icon: Icons.shield_rounded, text: "Safety $trust", color: C.cyan),
+        if (verified) const ProfileChip(icon: Icons.verified_rounded, text: "Verifiziert", color: Colors.blueAccent),
+        if (creator) const ProfileChip(icon: Icons.workspace_premium_rounded, text: "Creator", color: C.orange),
+        const ProfileChip(icon: Icons.public_rounded, text: "Real Life", color: C.green),
       ],
     );
   }
@@ -824,7 +980,7 @@ class ProfileChip extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             text,
-            style: TextStyle(color: color, fontWeight: FontWeight.bold),
+            style: TextStyle(color: color, fontWeight: FontWeight.w900),
           ),
         ],
       ),
@@ -851,8 +1007,14 @@ class ProfileVibes extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: C.card,
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: C.cyan.withOpacity(0.16)),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: C.cyan.withOpacity(0.18)),
+        boxShadow: [
+          BoxShadow(
+            color: C.cyan.withOpacity(0.08),
+            blurRadius: 22,
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -862,13 +1024,13 @@ class ProfileVibes extends StatelessWidget {
               const Expanded(
                 child: Text(
                   "Vibes",
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 23, fontWeight: FontWeight.w900),
                 ),
               ),
               if (isMe)
                 TextButton.icon(
                   onPressed: onEdit,
-                  icon: const Icon(Icons.tune, color: C.cyan, size: 18),
+                  icon: const Icon(Icons.tune_rounded, color: C.cyan, size: 18),
                   label: const Text("Ändern", style: TextStyle(color: C.cyan)),
                 ),
             ],
@@ -882,12 +1044,12 @@ class ProfileVibes extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   color: C.cyan.withOpacity(0.10),
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(999),
                   border: Border.all(color: C.cyan.withOpacity(0.28)),
                 ),
                 child: Text(
                   "#$item",
-                  style: const TextStyle(color: C.cyan, fontWeight: FontWeight.bold),
+                  style: const TextStyle(color: C.cyan, fontWeight: FontWeight.w900),
                 ),
               );
             }).toList(),
@@ -906,7 +1068,10 @@ class ProfileEventGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection("activities").where("creatorId", isEqualTo: userId).snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection("activities")
+          .where("creatorId", isEqualTo: userId)
+          .snapshots(),
       builder: (context, snap) {
         if (!snap.hasData) {
           return const Center(child: CircularProgressIndicator(color: C.cyan));
@@ -919,16 +1084,17 @@ class ProfileEventGrid extends StatelessWidget {
           children: [
             const Text(
               "Posts & Events",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 23, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 12),
             if (docs.isEmpty)
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(22),
+                padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
                   color: C.card,
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(26),
+                  border: Border.all(color: C.cyan.withOpacity(0.14)),
                 ),
                 child: const Text(
                   "Noch keine Events erstellt.",
@@ -949,16 +1115,22 @@ class ProfileEventGrid extends StatelessWidget {
                 ),
                 itemBuilder: (context, i) {
                   final data = docs[i].data() as Map<String, dynamic>;
-                  final title = data["title"] ?? "Event";
-                  final category = data["category"] ?? "Chill";
+                  final title = (data["title"] ?? "Event").toString();
+                  final category = (data["category"] ?? "Chill").toString();
                   final imageUrl = (data["imageUrl"] ?? "").toString().trim();
 
                   return Container(
                     clipBehavior: Clip.antiAlias,
                     decoration: BoxDecoration(
                       color: C.card,
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(26),
                       border: Border.all(color: C.cyan.withOpacity(0.16)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: C.cyan.withOpacity(0.08),
+                          blurRadius: 18,
+                        ),
+                      ],
                     ),
                     child: Stack(
                       fit: StackFit.expand,
@@ -969,18 +1141,14 @@ class ProfileEventGrid extends StatelessWidget {
                             fit: BoxFit.cover,
                             loadingBuilder: (context, child, progress) {
                               if (progress == null) return child;
-
                               return Container(
-                                color: C.card2,
+                                color: C.card,
                                 child: const Center(
                                   child: CircularProgressIndicator(color: C.cyan),
                                 ),
                               );
                             },
                             errorBuilder: (context, error, stackTrace) {
-                              debugPrint("Event Bild Fehler: $error");
-                              debugPrint("Event Bild URL: $imageUrl");
-
                               return const OutlyEventFallback();
                             },
                           )
@@ -991,7 +1159,7 @@ class ProfileEventGrid extends StatelessWidget {
                             gradient: LinearGradient(
                               colors: [
                                 Colors.transparent,
-                                Colors.black.withOpacity(0.82),
+                                Colors.black.withOpacity(0.86),
                               ],
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
@@ -1009,7 +1177,7 @@ class ProfileEventGrid extends StatelessWidget {
                                 category,
                                 style: const TextStyle(
                                   color: C.cyan,
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w900,
                                   fontSize: 12,
                                 ),
                               ),
@@ -1018,7 +1186,7 @@ class ProfileEventGrid extends StatelessWidget {
                                 title,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                style: const TextStyle(fontWeight: FontWeight.w900),
                               ),
                             ],
                           ),
@@ -1054,9 +1222,46 @@ class OutlyEventFallback extends StatelessWidget {
       ),
       child: const Center(
         child: Icon(
-          Icons.local_fire_department,
+          Icons.local_fire_department_rounded,
           color: Colors.white54,
           size: 54,
+        ),
+      ),
+    );
+  }
+}
+
+class _OutlyField extends StatelessWidget {
+  final TextEditingController controller;
+  final String hint;
+  final IconData icon;
+  final int maxLines;
+
+  const _OutlyField({
+    required this.controller,
+    required this.hint,
+    required this.icon,
+    this.maxLines = 1,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: C.card,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: C.cyan.withOpacity(0.18)),
+      ),
+      child: TextField(
+        controller: controller,
+        maxLines: maxLines,
+        style: const TextStyle(color: Colors.white),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: const TextStyle(color: Colors.white38),
+          prefixIcon: Icon(icon, color: C.cyan),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         ),
       ),
     );
@@ -1079,16 +1284,29 @@ class PrivateChatScreen extends StatefulWidget {
 
 class _PrivateChatScreenState extends State<PrivateChatScreen> {
   final msg = TextEditingController();
+  final scroll = ScrollController();
 
   @override
   void dispose() {
     msg.dispose();
+    scroll.dispose();
     super.dispose();
   }
 
   String getChatId(String a, String b) {
     final ids = [a, b]..sort();
     return "${ids[0]}_${ids[1]}";
+  }
+
+  void jumpBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!scroll.hasClients) return;
+      scroll.animateTo(
+        scroll.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   Future<void> sendMessage() async {
@@ -1099,11 +1317,17 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     final chatId = getChatId(user.uid, widget.otherUserId);
     final chatRef = FirebaseFirestore.instance.collection("privateChats").doc(chatId);
 
+    msg.clear();
+
     await chatRef.set({
       "participants": [user.uid, widget.otherUserId],
       "lastMessage": text,
       "lastMessageAt": Timestamp.now(),
       "updatedAt": Timestamp.now(),
+      "unread": {
+        widget.otherUserId: FieldValue.increment(1),
+        user.uid: 0,
+      },
     }, SetOptions(merge: true));
 
     await chatRef.collection("messages").add({
@@ -1111,154 +1335,282 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       "senderId": user.uid,
       "receiverId": widget.otherUserId,
       "createdAt": Timestamp.now(),
+      "seen": false,
     });
 
-    msg.clear();
+    jumpBottom();
   }
 
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser!.uid;
     final chatId = getChatId(uid, widget.otherUserId);
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: C.bg,
-      appBar: AppBar(
-        backgroundColor: C.bg,
-        elevation: 0,
-        titleSpacing: 0,
-        title: StreamBuilder<DocumentSnapshot>(
-          stream: FirebaseFirestore.instance.collection("users").doc(widget.otherUserId).snapshots(),
-          builder: (context, snap) {
-            final data = snap.data?.data() as Map<String, dynamic>? ?? {};
-            final username = data["username"] ?? widget.otherUsername;
-            final photoUrl = (data["photoUrl"] ?? "").toString().trim();
-            final city = data["city"] ?? "";
-
-            return Row(
-              children: [
-                OutlyAvatar(photoUrl: photoUrl, radius: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text("@$username", style: const TextStyle(fontWeight: FontWeight.bold)),
-                      if (city.toString().isNotEmpty)
-                        Text(
-                          city,
-                          style: const TextStyle(color: Colors.white54, fontSize: 12),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-      body: Column(
+      body: Stack(
         children: [
           Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            margin: const EdgeInsets.fromLTRB(14, 8, 14, 8),
             decoration: BoxDecoration(
-              color: C.orange.withOpacity(0.10),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: C.orange.withOpacity(0.28)),
-            ),
-            child: const Text(
-              "Safety Hinweis: Teile keine privaten Daten und triff dich nur an sicheren öffentlichen Orten.",
-              style: TextStyle(color: Colors.white70, fontSize: 12),
-            ),
-          ),
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection("privateChats")
-                  .doc(chatId)
-                  .collection("messages")
-                  .orderBy("createdAt")
-                  .snapshots(),
-              builder: (context, snap) {
-                if (!snap.hasData) {
-                  return const Center(child: CircularProgressIndicator(color: C.cyan));
-                }
-
-                final messages = snap.data!.docs;
-
-                if (messages.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      "Noch keine Nachrichten",
-                      style: TextStyle(color: Colors.white54),
-                    ),
-                  );
-                }
-
-                return ListView.builder(
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.all(14),
-                  itemCount: messages.length,
-                  itemBuilder: (context, i) {
-                    final m = messages[i].data() as Map<String, dynamic>;
-                    final isMe = m["senderId"] == uid;
-
-                    return Align(
-                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 5),
-                        padding: const EdgeInsets.all(12),
-                        constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width * 0.72,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isMe ? C.cyan : C.card,
-                          borderRadius: BorderRadius.only(
-                            topLeft: const Radius.circular(18),
-                            topRight: const Radius.circular(18),
-                            bottomLeft: Radius.circular(isMe ? 18 : 5),
-                            bottomRight: Radius.circular(isMe ? 5 : 18),
-                          ),
-                        ),
-                        child: Text(
-                          m["text"] ?? "",
-                          style: TextStyle(
-                            color: isMe ? Colors.black : Colors.white,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
+              gradient: RadialGradient(
+                center: Alignment.topLeft,
+                radius: 1.25,
+                colors: [
+                  C.purple.withOpacity(0.35),
+                  C.bg,
+                  Colors.black,
+                ],
+              ),
             ),
           ),
           SafeArea(
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              color: Colors.black,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: msg,
-                      minLines: 1,
-                      maxLines: 4,
-                      decoration: const InputDecoration(
-                        hintText: "Nachricht schreiben...",
-                      ),
-                    ),
+            child: Column(
+              children: [
+                _ChatHeader(otherUserId: widget.otherUserId, fallbackName: widget.otherUsername),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+                  decoration: BoxDecoration(
+                    color: C.orange.withOpacity(0.10),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: C.orange.withOpacity(0.28)),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.send, color: C.cyan),
-                    onPressed: sendMessage,
+                  child: const Text(
+                    "Safety: Teile keine privaten Daten und triff dich nur an sicheren öffentlichen Orten.",
+                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                ),
+                Expanded(
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection("privateChats")
+                        .doc(chatId)
+                        .collection("messages")
+                        .orderBy("createdAt")
+                        .snapshots(),
+                    builder: (context, snap) {
+                      if (!snap.hasData) {
+                        return const Center(child: CircularProgressIndicator(color: C.cyan));
+                      }
+
+                      final messages = snap.data!.docs;
+                      jumpBottom();
+
+                      if (messages.isEmpty) {
+                        return const Center(
+                          child: Text(
+                            "Sag Hi 👋",
+                            style: TextStyle(color: Colors.white54),
+                          ),
+                        );
+                      }
+
+                      return ListView.builder(
+                        controller: scroll,
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(14, 10, 14, 18),
+                        itemCount: messages.length,
+                        itemBuilder: (context, i) {
+                          final m = messages[i].data() as Map<String, dynamic>;
+                          final isMe = m["senderId"] == uid;
+
+                          return Align(
+                            alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(vertical: 5),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              constraints: BoxConstraints(
+                                maxWidth: MediaQuery.of(context).size.width * 0.74,
+                              ),
+                              decoration: BoxDecoration(
+                                gradient: isMe
+                                    ? const LinearGradient(colors: [C.cyan, C.purple])
+                                    : null,
+                                color: isMe ? null : C.card,
+                                borderRadius: BorderRadius.only(
+                                  topLeft: const Radius.circular(20),
+                                  topRight: const Radius.circular(20),
+                                  bottomLeft: Radius.circular(isMe ? 20 : 6),
+                                  bottomRight: Radius.circular(isMe ? 6 : 20),
+                                ),
+                                border: Border.all(
+                                  color: isMe ? Colors.transparent : C.cyan.withOpacity(0.14),
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: (isMe ? C.cyan : Colors.black).withOpacity(0.16),
+                                    blurRadius: 18,
+                                  ),
+                                ],
+                              ),
+                              child: Text(
+                                (m["text"] ?? "").toString(),
+                                style: TextStyle(
+                                  color: isMe ? Colors.black : Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+                AnimatedPadding(
+                  duration: const Duration(milliseconds: 160),
+                  curve: Curves.easeOut,
+                  padding: EdgeInsets.only(bottom: bottomInset),
+                  child: _MessageComposer(
+                    controller: msg,
+                    onSend: sendMessage,
+                    onTap: jumpBottom,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChatHeader extends StatelessWidget {
+  final String otherUserId;
+  final String fallbackName;
+
+  const _ChatHeader({
+    required this.otherUserId,
+    required this.fallbackName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection("users").doc(otherUserId).snapshots(),
+      builder: (context, snap) {
+        final data = snap.data?.data() as Map<String, dynamic>? ?? {};
+        final username = (data["username"] ?? fallbackName).toString();
+        final photoUrl = (data["photoUrl"] ?? "").toString();
+        final city = (data["city"] ?? "").toString();
+        final verified = data["verified"] == true;
+
+        return Container(
+          padding: const EdgeInsets.fromLTRB(8, 8, 14, 10),
+          decoration: BoxDecoration(
+            color: C.bg.withOpacity(0.88),
+            border: Border(
+              bottom: BorderSide(color: C.cyan.withOpacity(0.10)),
+            ),
+          ),
+          child: Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back_rounded),
+                onPressed: () => Navigator.pop(context),
+              ),
+              OutlyAvatar(photoUrl: photoUrl, radius: 22),
+              const SizedBox(width: 10),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ProfileScreen(userId: otherUserId),
+                      ),
+                    );
+                  },
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      verifiedName(username, verified, size: 17),
+                      Text(
+                        city.isEmpty ? "Outly Chat" : city,
+                        style: const TextStyle(color: Colors.white54, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.more_horiz_rounded, color: Colors.white70),
+                onPressed: () {},
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _MessageComposer extends StatelessWidget {
+  final TextEditingController controller;
+  final VoidCallback onSend;
+  final VoidCallback onTap;
+
+  const _MessageComposer({
+    required this.controller,
+    required this.onSend,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.92),
+        border: Border(
+          top: BorderSide(color: C.cyan.withOpacity(0.13)),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: C.card,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: C.cyan.withOpacity(0.22)),
+              ),
+              child: TextField(
+                controller: controller,
+                onTap: onTap,
+                minLines: 1,
+                maxLines: 4,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  hintText: "Nachricht schreiben...",
+                  hintStyle: TextStyle(color: Colors.white38),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          GestureDetector(
+            onTap: onSend,
+            child: Container(
+              height: 50,
+              width: 50,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(colors: [C.cyan, C.purple]),
+                boxShadow: [
+                  BoxShadow(
+                    color: C.cyan.withOpacity(0.28),
+                    blurRadius: 22,
                   ),
                 ],
               ),
+              child: const Icon(Icons.send_rounded, color: Colors.black),
             ),
           ),
         ],
