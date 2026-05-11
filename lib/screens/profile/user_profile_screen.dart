@@ -8,8 +8,9 @@ import '../../core/app_colors.dart';
 import '../../services/storage_service.dart';
 import '../../widgets/auth/gradient_button.dart';
 import '../../widgets/common/outly_avatar.dart';
-import '../../widgets/common/verified_name.dart';
+import '../chat/private_chat_screen.dart' as chat;
 import 'settings_screen.dart';
+import '../../core/event_utils.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String userId;
@@ -29,6 +30,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final bio = TextEditingController();
 
   bool uploadingImage = false;
+  bool uploadingMoment = false;
+  int tab = 0;
 
   final allVibes = const [
     "Sport",
@@ -51,6 +54,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
     city.dispose();
     bio.dispose();
     super.dispose();
+  }
+
+  String outlyLevel(Map<String, dynamic> data, int eventCount) {
+    final followers = List.from(data["followers"] ?? []).length;
+    final vibes = List.from(data["interests"] ?? []).length;
+
+    if (followers >= 150 || eventCount >= 40) return "Legend";
+    if (followers >= 60 || eventCount >= 20) return "Explorer";
+    if (followers >= 20 || eventCount >= 8) return "Social";
+    if (followers >= 5 || vibes >= 4) return "Active";
+    return "New";
+  }
+
+  Color outlyLevelColor(String level) {
+    switch (level) {
+      case "Legend":
+        return C.orange;
+      case "Explorer":
+        return C.purple;
+      case "Social":
+        return C.pink;
+      case "Active":
+        return C.cyan;
+      default:
+        return Colors.white54;
+    }
+  }
+
+  IconData outlyLevelIcon(String level) {
+    switch (level) {
+      case "Legend":
+        return Icons.workspace_premium_rounded;
+      case "Explorer":
+        return Icons.explore_rounded;
+      case "Social":
+        return Icons.local_fire_department_rounded;
+      case "Active":
+        return Icons.bolt_rounded;
+      default:
+        return Icons.auto_awesome_rounded;
+    }
   }
 
   Future<void> uploadProfileImage() async {
@@ -116,12 +160,66 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     } catch (e) {
       debugPrint("Profilbild Upload Fehler: $e");
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Profilbild konnte nicht gespeichert werden.")),
       );
     } finally {
       if (mounted) setState(() => uploadingImage = false);
+    }
+  }
+
+  Future<void> uploadMoment() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || uploadingMoment) return;
+
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 88,
+      maxWidth: 1600,
+    );
+
+    if (picked == null) return;
+
+    setState(() => uploadingMoment = true);
+
+    try {
+      final bytes = await picked.readAsBytes();
+
+      final url = await uploadImageBytes(
+        bytes: bytes,
+        path:
+            "moments/${user.uid}/moment_${DateTime.now().millisecondsSinceEpoch}.jpg",
+      );
+
+      if (url == null || url.trim().isEmpty) {
+        throw Exception("Upload URL leer");
+      }
+
+      await FirebaseFirestore.instance.collection("moments").add({
+        "userId": user.uid,
+        "imageUrl": url.trim(),
+        "type": "photo",
+        "likes": [],
+        "createdAt": Timestamp.now(),
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Moment hochgeladen 🔥")),
+      );
+    } catch (e) {
+      debugPrint("Moment Upload Fehler: $e");
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Moment konnte nicht hochgeladen werden.")),
+      );
+    } finally {
+      if (mounted) setState(() => uploadingMoment = false);
     }
   }
 
@@ -148,12 +246,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 color: C.bg,
                 borderRadius: BorderRadius.circular(34),
                 border: Border.all(color: C.cyan.withOpacity(0.28)),
-                boxShadow: [
-                  BoxShadow(
-                    color: C.cyan.withOpacity(0.18),
-                    blurRadius: 34,
-                  ),
-                ],
               ),
               child: SingleChildScrollView(
                 child: Column(
@@ -221,7 +313,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       },
     );
   }
-
   void openVibeEditor(List<String> currentVibes) {
     final uid = FirebaseAuth.instance.currentUser!.uid;
     final selected = currentVibes.toSet();
@@ -264,11 +355,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             fontWeight: FontWeight.w900,
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          "Wähle, was zu dir passt.",
-                          style: TextStyle(color: Colors.white60),
-                        ),
                         const SizedBox(height: 20),
                         Wrap(
                           spacing: 10,
@@ -294,14 +380,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   border: Border.all(
                                     color: active ? C.cyan : Colors.white12,
                                   ),
-                                  boxShadow: active
-                                      ? [
-                                          BoxShadow(
-                                            color: C.cyan.withOpacity(0.35),
-                                            blurRadius: 18,
-                                          ),
-                                        ]
-                                      : [],
                                 ),
                                 child: Text(
                                   "#$vibe",
@@ -339,93 +417,153 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final myUid = FirebaseAuth.instance.currentUser!.uid;
-    final isMe = widget.userId == myUid;
+@override
+Widget build(BuildContext context) {
+  final myUid = FirebaseAuth.instance.currentUser!.uid;
+  final isMe = widget.userId == myUid;
 
-    return Scaffold(
-      backgroundColor: C.bg,
-      body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance.collection("users").doc(widget.userId).snapshots(),
-        builder: (context, snap) {
-          if (!snap.hasData) {
-            return const Center(child: CircularProgressIndicator(color: C.cyan));
-          }
-
-          final data = snap.data!.data() as Map<String, dynamic>? ?? {};
-          final vibes = List<String>.from(data["interests"] ?? ["Sport", "Chill", "Gaming"]);
-
-          return CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              SliverAppBar(
-                backgroundColor: C.bg,
-                expandedHeight: 380,
-                pinned: true,
-                elevation: 0,
-                title: Text(isMe ? "Mein Profil" : "@${data["username"] ?? "user"}"),
-                actions: [
-                  if (isMe)
-                    IconButton(
-                      icon: const Icon(Icons.settings_rounded),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                        );
-                      },
-                    ),
-                ],
-                flexibleSpace: FlexibleSpaceBar(
-                  background: ProfileHero(
-                    data: data,
-                    isMe: isMe,
-                    uploadingImage: uploadingImage,
-                    onImageTap: uploadProfileImage,
-                  ),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 130),
-                  child: Column(
-                    children: [
-                      ProfileActionButtons(
-                        isMe: isMe,
-                        data: data,
-                        userId: widget.userId,
-                        onEdit: () => openEdit(data),
-                      ),
-                      const SizedBox(height: 22),
-                      ProfileStats(userId: widget.userId, data: data),
-                      const SizedBox(height: 22),
-                      ProfileBadges(data: data),
-                      const SizedBox(height: 22),
-                      ProfileVibes(
-                        vibes: vibes,
-                        isMe: isMe,
-                        onEdit: () => openVibeEditor(vibes),
-                      ),
-                      const SizedBox(height: 22),
-                      ProfileEventGrid(userId: widget.userId),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+  return Scaffold(
+    backgroundColor: C.bg,
+    body: StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection("users")
+          .doc(widget.userId)
+          .snapshots(),
+      builder: (context, userSnap) {
+        if (!userSnap.hasData) {
+          return const Center(
+            child: CircularProgressIndicator(color: C.cyan),
           );
-        },
-      ),
-    );
-  }
-}
+        }
 
+        final data = userSnap.data!.data() as Map<String, dynamic>? ?? {};
+        final vibes = List<String>.from(
+          data["interests"] ?? ["Sport", "Chill", "Gaming"],
+        );
+
+        return StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection("activities")
+              .snapshots(),
+          builder: (context, eventSnap) {
+            final eventCount = eventSnap.data?.docs.length ?? 0;
+            final level = outlyLevel(data, eventCount);
+            final levelColor = outlyLevelColor(level);
+
+            return CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                SliverAppBar(
+                  backgroundColor: C.bg,
+                  expandedHeight: 370,
+                  pinned: true,
+                  elevation: 0,
+                  title: Text(
+                    isMe ? "Mein Profil" : "@${data["username"] ?? "user"}",
+                  ),
+                  actions: [
+                    if (isMe)
+                      IconButton(
+                        icon: const Icon(Icons.settings_rounded),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SettingsScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                  ],
+                  flexibleSpace: FlexibleSpaceBar(
+                    background: ProfileHero(
+                      data: data,
+                      isMe: isMe,
+                      uploadingImage: uploadingImage,
+                      onImageTap: uploadProfileImage,
+                      level: level,
+                      levelColor: levelColor,
+                      levelIcon: outlyLevelIcon(level),
+                    ),
+                  ),
+                ),
+
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 130),
+                    child: Column(
+                      children: [
+                        ProfileActionButtons(
+                          isMe: isMe,
+                          data: data,
+                          userId: widget.userId,
+                          onEdit: () => openEdit(data),
+                        ),
+
+                        const SizedBox(height: 18),
+
+                        ProfileStats(
+                          userId: widget.userId,
+                          data: data,
+                          eventCount: eventCount,
+                        ),
+
+                        const SizedBox(height: 18),
+
+                        ProfileLevelCard(
+                          level: level,
+                          color: levelColor,
+                          icon: outlyLevelIcon(level),
+                        ),
+
+                        const SizedBox(height: 18),
+
+                        ProfileVibes(
+                          vibes: vibes,
+                          isMe: isMe,
+                          onEdit: () => openVibeEditor(vibes),
+                        ),
+
+                        const SizedBox(height: 18),
+
+                        ProfileTabs(
+                          active: tab,
+                          onChanged: (v) => setState(() => tab = v),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        if (tab == 0) ...[
+                          if (isMe)
+                            UploadMomentBox(
+                              uploading: uploadingMoment,
+                              onTap: uploadMoment,
+                            ),
+                          if (isMe) const SizedBox(height: 14),
+                          ProfileMomentsGrid(userId: widget.userId),
+                        ] else
+                          ProfileEventGrid(userId: widget.userId),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    ),
+  );
+}
+}
 class ProfileHero extends StatelessWidget {
   final Map<String, dynamic> data;
   final bool isMe;
   final bool uploadingImage;
   final VoidCallback onImageTap;
+  final String level;
+  final Color levelColor;
+  final IconData levelIcon;
 
   const ProfileHero({
     super.key,
@@ -433,6 +571,9 @@ class ProfileHero extends StatelessWidget {
     required this.isMe,
     required this.uploadingImage,
     required this.onImageTap,
+    required this.level,
+    required this.levelColor,
+    required this.levelIcon,
   });
 
   @override
@@ -441,8 +582,13 @@ class ProfileHero extends StatelessWidget {
     final bio = (data["bio"] ?? "Neu bei Outly 🔥").toString();
     final city = (data["city"] ?? "Keine Stadt").toString();
     final photoUrl = (data["photoUrl"] ?? "").toString().trim();
-    final verified = data["verified"] == true;
+
+    final verified = data["verified"] == true; // blauer Haken nur Creator/Firmen
     final creator = data["creator"] == true;
+    final trusted = data["trusted"] == true;
+    final legend = data["legend"] == true;
+    final vip = data["vip"] == true;
+    final team = data["team"] == true;
 
     return Stack(
       fit: StackFit.expand,
@@ -451,9 +597,9 @@ class ProfileHero extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                C.purple.withOpacity(0.98),
-                C.pink.withOpacity(0.48),
-                C.cyan.withOpacity(0.30),
+                C.purple.withOpacity(0.95),
+                C.pink.withOpacity(0.38),
+                C.cyan.withOpacity(0.25),
                 C.bg,
               ],
               begin: Alignment.topLeft,
@@ -461,41 +607,24 @@ class ProfileHero extends StatelessWidget {
             ),
           ),
         ),
+
         Positioned(
           right: -55,
-          top: 70,
+          top: 65,
           child: Icon(
-            Icons.auto_awesome_rounded,
-            size: 210,
+            levelIcon,
+            size: 215,
             color: Colors.white.withOpacity(0.07),
           ),
         ),
-        Positioned(
-          left: -50,
-          top: 90,
-          child: Container(
-            height: 180,
-            width: 180,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: C.cyan.withOpacity(0.11),
-              boxShadow: [
-                BoxShadow(
-                  color: C.cyan.withOpacity(0.22),
-                  blurRadius: 90,
-                  spreadRadius: 20,
-                ),
-              ],
-            ),
-          ),
-        ),
+
         Positioned.fill(
           child: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
                   Colors.black.withOpacity(0.05),
-                  C.bg.withOpacity(0.16),
+                  C.bg.withOpacity(0.18),
                   C.bg,
                 ],
                 begin: Alignment.topCenter,
@@ -504,6 +633,7 @@ class ProfileHero extends StatelessWidget {
             ),
           ),
         ),
+
         Positioned(
           left: 20,
           right: 20,
@@ -516,27 +646,31 @@ class ProfileHero extends StatelessWidget {
                   alignment: Alignment.center,
                   children: [
                     Container(
-                      width: 134,
-                      height: 134,
+                      width: 132,
+                      height: 132,
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        gradient: const LinearGradient(
-                          colors: [C.pink, C.cyan, C.purple],
+                        gradient: LinearGradient(
+                          colors: [levelColor, C.cyan, C.purple],
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: C.cyan.withOpacity(0.48),
-                            blurRadius: 42,
+                            color: levelColor.withOpacity(0.42),
+                            blurRadius: 38,
                           ),
                         ],
                       ),
-                      child: OutlyAvatar(photoUrl: photoUrl, radius: 62),
+                      child: OutlyAvatar(
+                        photoUrl: photoUrl,
+                        radius: 62,
+                      ),
                     ),
+
                     if (uploadingImage)
                       Container(
-                        width: 134,
-                        height: 134,
+                        width: 132,
+                        height: 132,
                         decoration: BoxDecoration(
                           color: Colors.black.withOpacity(0.50),
                           shape: BoxShape.circle,
@@ -545,6 +679,7 @@ class ProfileHero extends StatelessWidget {
                           child: CircularProgressIndicator(color: C.cyan),
                         ),
                       ),
+
                     if (isMe)
                       Positioned(
                         right: 0,
@@ -552,29 +687,111 @@ class ProfileHero extends StatelessWidget {
                         child: CircleAvatar(
                           radius: 20,
                           backgroundColor: C.cyan,
-                          child: const Icon(Icons.camera_alt_rounded, color: Colors.black, size: 18),
+                          child: const Icon(
+                            Icons.camera_alt_rounded,
+                            color: Colors.black,
+                            size: 18,
+                          ),
                         ),
                       ),
                   ],
                 ),
               ),
+
               const SizedBox(height: 13),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+
+              Wrap(
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 6,
                 children: [
-                  Flexible(child: verifiedName(username, verified, size: 30)),
-                  if (creator) ...[
-                    const SizedBox(width: 8),
-                    const Icon(Icons.workspace_premium_rounded, color: C.orange, size: 25),
-                  ],
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          "@$username",
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 31,
+                            fontWeight: FontWeight.w900,
+                            height: 1,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+
+                      if (verified)
+                        const Padding(
+                          padding: EdgeInsets.only(left: 6),
+                          child: Icon(
+                            Icons.verified_rounded,
+                            color: Colors.blueAccent,
+                            size: 24,
+                          ),
+                        ),
+                    ],
+                  ),
+
+                  if (creator)
+                    const Icon(
+                      Icons.workspace_premium_rounded,
+                      color: C.orange,
+                      size: 23,
+                    ),
+
+                  if (trusted)
+                    const Icon(
+                      Icons.shield_rounded,
+                      color: C.cyan,
+                      size: 22,
+                    ),
+
+                  if (legend)
+                    const Icon(
+                      Icons.whatshot_rounded,
+                      color: C.pink,
+                      size: 22,
+                    ),
+
+                  if (vip)
+                    const Icon(
+                      Icons.diamond_rounded,
+                      color: Colors.purpleAccent,
+                      size: 22,
+                    ),
+
+                  if (team)
+                    const Icon(
+                      Icons.bolt_rounded,
+                      color: Colors.greenAccent,
+                      size: 22,
+                    ),
                 ],
               ),
-              const SizedBox(height: 6),
+
+              const SizedBox(height: 8),
+
+              OutlyLevelBadge(
+                level: level,
+                color: levelColor,
+                icon: levelIcon,
+              ),
+
+              const SizedBox(height: 8),
+
               Text(
                 city,
-                style: const TextStyle(color: Colors.white60, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                  color: Colors.white60,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
+
               const SizedBox(height: 10),
+
               Text(
                 bio,
                 maxLines: 2,
@@ -590,6 +807,55 @@ class ProfileHero extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class OutlyLevelBadge extends StatelessWidget {
+  final String level;
+  final Color color;
+  final IconData icon;
+
+  const OutlyLevelBadge({
+    super.key,
+    required this.level,
+    required this.color,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 13,
+        vertical: 8,
+      ),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.16),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withOpacity(0.45)),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.18),
+            blurRadius: 16,
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 17),
+          const SizedBox(width: 6),
+          Text(
+            "Outly $level",
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w900,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -643,7 +909,9 @@ class ProfileActionButtons extends StatelessWidget {
     if (!context.mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(isFollowing ? "Entfolgt" : "Du folgst jetzt 🔥")),
+      SnackBar(
+        content: Text(isFollowing ? "Entfolgt" : "Du folgst jetzt 🔥"),
+      ),
     );
   }
 
@@ -679,7 +947,10 @@ class ProfileActionButtons extends StatelessWidget {
     final followsMe = followers.contains(myUid);
 
     return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection("users").doc(myUid).snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection("users")
+          .doc(myUid)
+          .snapshots(),
       builder: (context, mySnap) {
         final myData = mySnap.data?.data() as Map<String, dynamic>? ?? {};
         final following = List<String>.from(myData["following"] ?? []);
@@ -704,12 +975,15 @@ class ProfileActionButtons extends StatelessWidget {
                           ),
                     color: isFollowing ? C.card : null,
                     border: Border.all(
-                      color: isFollowing ? C.cyan.withOpacity(0.35) : Colors.transparent,
+                      color: isFollowing
+                          ? C.cyan.withOpacity(0.35)
+                          : Colors.transparent,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: (isFollowing ? C.cyan : C.purple).withOpacity(0.25),
-                        blurRadius: 24,
+                        color: (isFollowing ? C.cyan : C.purple)
+                            .withOpacity(0.22),
+                        blurRadius: 22,
                       ),
                     ],
                   ),
@@ -736,14 +1010,16 @@ class ProfileActionButtons extends StatelessWidget {
                 ),
               ),
             ),
+
             const SizedBox(width: 10),
+
             Expanded(
               child: GestureDetector(
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => PrivateChatScreen(
+                      builder: (_) => chat.PrivateChatScreen(
                         otherUserId: userId,
                         otherUsername: data["username"] ?? "user",
                       ),
@@ -758,8 +1034,8 @@ class ProfileActionButtons extends StatelessWidget {
                     border: Border.all(color: C.pink.withOpacity(0.30)),
                     boxShadow: [
                       BoxShadow(
-                        color: C.pink.withOpacity(0.18),
-                        blurRadius: 22,
+                        color: C.pink.withOpacity(0.16),
+                        blurRadius: 20,
                       ),
                     ],
                   ),
@@ -780,9 +1056,13 @@ class ProfileActionButtons extends StatelessWidget {
                 ),
               ),
             ),
+
             const SizedBox(width: 10),
+
             _NeonIconButton(
-              icon: followsMe ? Icons.favorite_rounded : Icons.more_horiz_rounded,
+              icon: followsMe
+                  ? Icons.favorite_rounded
+                  : Icons.more_horiz_rounded,
               color: followsMe ? C.pink : C.orange,
               onTap: () {},
             ),
@@ -817,8 +1097,8 @@ class _NeonIconButton extends StatelessWidget {
           border: Border.all(color: color.withOpacity(0.32)),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.18),
-              blurRadius: 22,
+              color: color.withOpacity(0.16),
+              blurRadius: 20,
             ),
           ],
         ),
@@ -831,11 +1111,13 @@ class _NeonIconButton extends StatelessWidget {
 class ProfileStats extends StatelessWidget {
   final String userId;
   final Map<String, dynamic> data;
+  final int eventCount;
 
   const ProfileStats({
     super.key,
     required this.userId,
     required this.data,
+    required this.eventCount,
   });
 
   @override
@@ -843,45 +1125,35 @@ class ProfileStats extends StatelessWidget {
     final followers = List.from(data["followers"] ?? []);
     final following = List.from(data["following"] ?? []);
 
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection("activities")
-          .where("creatorId", isEqualTo: userId)
-          .snapshots(),
-      builder: (context, snap) {
-        final eventCount = snap.data?.docs.length ?? 0;
-
-        return Row(
-          children: [
-            Expanded(
-              child: ProfileStatBox(
-                value: "$eventCount",
-                label: "Events",
-                icon: Icons.local_fire_department_rounded,
-                color: C.orange,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: ProfileStatBox(
-                value: "${followers.length}",
-                label: "Follower",
-                icon: Icons.groups_2_rounded,
-                color: C.cyan,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: ProfileStatBox(
-                value: "${following.length}",
-                label: "Folgt",
-                icon: Icons.person_add_alt_1_rounded,
-                color: C.purple,
-              ),
-            ),
-          ],
-        );
-      },
+    return Row(
+      children: [
+        Expanded(
+          child: ProfileStatBox(
+            value: "$eventCount",
+            label: "Events",
+            icon: Icons.local_fire_department_rounded,
+            color: C.orange,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: ProfileStatBox(
+            value: "${followers.length}",
+            label: "Follower",
+            icon: Icons.groups_2_rounded,
+            color: C.cyan,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: ProfileStatBox(
+            value: "${following.length}",
+            label: "Folgt",
+            icon: Icons.person_add_alt_1_rounded,
+            color: C.purple,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -908,9 +1180,6 @@ class ProfileStatBox extends StatelessWidget {
         color: C.card,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: color.withOpacity(0.25)),
-        boxShadow: [
-          BoxShadow(color: color.withOpacity(0.08), blurRadius: 18),
-        ],
       ),
       child: Column(
         children: [
@@ -918,69 +1187,97 @@ class ProfileStatBox extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             value,
-            style: TextStyle(color: color, fontSize: 23, fontWeight: FontWeight.w900),
+            style: TextStyle(
+              color: color,
+              fontSize: 23,
+              fontWeight: FontWeight.w900,
+            ),
           ),
-          Text(label, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white54,
+              fontSize: 12,
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class ProfileBadges extends StatelessWidget {
-  final Map<String, dynamic> data;
-
-  const ProfileBadges({super.key, required this.data});
-
-  @override
-  Widget build(BuildContext context) {
-    final verified = data["verified"] == true;
-    final creator = data["creator"] == true;
-    final trust = data["trustScore"] ?? 100;
-
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      alignment: WrapAlignment.center,
-      children: [
-        ProfileChip(icon: Icons.shield_rounded, text: "Safety $trust", color: C.cyan),
-        if (verified) const ProfileChip(icon: Icons.verified_rounded, text: "Verifiziert", color: Colors.blueAccent),
-        if (creator) const ProfileChip(icon: Icons.workspace_premium_rounded, text: "Creator", color: C.orange),
-        const ProfileChip(icon: Icons.public_rounded, text: "Real Life", color: C.green),
-      ],
-    );
-  }
-}
-
-class ProfileChip extends StatelessWidget {
-  final IconData icon;
-  final String text;
+class ProfileLevelCard extends StatelessWidget {
+  final String level;
   final Color color;
+  final IconData icon;
 
-  const ProfileChip({
+  const ProfileLevelCard({
     super.key,
-    required this.icon,
-    required this.text,
+    required this.level,
     required this.color,
+    required this.icon,
   });
+
+  String description() {
+    switch (level) {
+      case "Legend":
+        return "Sehr aktiv in der Outly Community.";
+      case "Explorer":
+        return "Erstellt Events und entdeckt neue Leute.";
+      case "Social":
+        return "Aktiv, sozial und oft dabei.";
+      case "Active":
+        return "Hat schon starke Vibes auf Outly.";
+      default:
+        return "Neu dabei. Noch am Entdecken.";
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.13),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withOpacity(0.40)),
+        color: C.card,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: color.withOpacity(0.25)),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: color, size: 17),
-          const SizedBox(width: 6),
-          Text(
-            text,
-            style: TextStyle(color: color, fontWeight: FontWeight.w900),
+          Container(
+            height: 52,
+            width: 52,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color.withOpacity(0.14),
+              border: Border.all(color: color.withOpacity(0.35)),
+            ),
+            child: Icon(icon, color: color),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Outly $level",
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description(),
+                  style: const TextStyle(
+                    color: Colors.white60,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -1009,12 +1306,6 @@ class ProfileVibes extends StatelessWidget {
         color: C.card,
         borderRadius: BorderRadius.circular(28),
         border: Border.all(color: C.cyan.withOpacity(0.18)),
-        boxShadow: [
-          BoxShadow(
-            color: C.cyan.withOpacity(0.08),
-            blurRadius: 22,
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1024,35 +1315,100 @@ class ProfileVibes extends StatelessWidget {
               const Expanded(
                 child: Text(
                   "Vibes",
-                  style: TextStyle(fontSize: 23, fontWeight: FontWeight.w900),
+                  style: TextStyle(
+                    fontSize: 23,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
               ),
               if (isMe)
                 TextButton.icon(
                   onPressed: onEdit,
-                  icon: const Icon(Icons.tune_rounded, color: C.cyan, size: 18),
-                  label: const Text("Ändern", style: TextStyle(color: C.cyan)),
+                  icon: const Icon(
+                    Icons.tune_rounded,
+                    color: C.cyan,
+                    size: 18,
+                  ),
+                  label: const Text(
+                    "Ändern",
+                    style: TextStyle(color: C.cyan),
+                  ),
                 ),
             ],
           ),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: vibes.map((item) {
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: C.cyan.withOpacity(0.10),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: C.cyan.withOpacity(0.28)),
-                ),
-                child: Text(
-                  "#$item",
-                  style: const TextStyle(color: C.cyan, fontWeight: FontWeight.w900),
-                ),
-              );
-            }).toList(),
+          if (vibes.isEmpty)
+            const Text(
+              "Noch keine Vibes ausgewählt.",
+              style: TextStyle(color: Colors.white54),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: vibes.map((item) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: C.cyan.withOpacity(0.10),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: C.cyan.withOpacity(0.28)),
+                  ),
+                  child: Text(
+                    "#$item",
+                    style: const TextStyle(
+                      color: C.cyan,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class ProfileTabs extends StatelessWidget {
+  final int active;
+  final ValueChanged<int> onChanged;
+
+  const ProfileTabs({
+    super.key,
+    required this.active,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(5),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.28),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _ProfileTabButton(
+              text: "Momente",
+              icon: Icons.grid_on_rounded,
+              active: active == 0,
+              onTap: () => onChanged(0),
+            ),
+          ),
+          Expanded(
+            child: _ProfileTabButton(
+              text: "Events",
+              icon: Icons.local_fire_department_rounded,
+              active: active == 1,
+              onTap: () => onChanged(1),
+            ),
           ),
         ],
       ),
@@ -1060,151 +1416,697 @@ class ProfileVibes extends StatelessWidget {
   }
 }
 
-class ProfileEventGrid extends StatelessWidget {
+class _ProfileTabButton extends StatelessWidget {
+  final String text;
+  final IconData icon;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _ProfileTabButton({
+    required this.text,
+    required this.icon,
+    required this.active,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(vertical: 13),
+        decoration: BoxDecoration(
+          color: active ? C.cyan : Colors.transparent,
+          borderRadius: BorderRadius.circular(17),
+          boxShadow: active
+              ? [
+                  BoxShadow(
+                    color: C.cyan.withOpacity(0.24),
+                    blurRadius: 18,
+                  ),
+                ]
+              : [],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color: active ? Colors.black : Colors.white54,
+            ),
+            const SizedBox(width: 7),
+            Text(
+              text,
+              style: TextStyle(
+                color: active ? Colors.black : Colors.white54,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ProfileMomentsGrid extends StatelessWidget {
   final String userId;
 
-  const ProfileEventGrid({super.key, required this.userId});
+  const ProfileMomentsGrid({
+    super.key,
+    required this.userId,
+  });
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
-          .collection("activities")
-          .where("creatorId", isEqualTo: userId)
+          .collection("moments")
+          .where("userId", isEqualTo: userId)
           .snapshots(),
       builder: (context, snap) {
-        if (!snap.hasData) {
-          return const Center(child: CircularProgressIndicator(color: C.cyan));
+        if (snap.hasError) {
+          return const _EmptyProfileBox(
+            icon: Icons.photo_library_rounded,
+            title: "Momente Fehler",
+            text: "Momente konnten gerade nicht geladen werden.",
+          );
         }
 
-        final docs = snap.data!.docs;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Posts & Events",
-              style: TextStyle(fontSize: 23, fontWeight: FontWeight.w900),
+        if (!snap.hasData) {
+          return const Padding(
+            padding: EdgeInsets.all(20),
+            child: Center(
+              child: CircularProgressIndicator(color: C.cyan),
             ),
-            const SizedBox(height: 12),
-            if (docs.isEmpty)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
+          );
+        }
+
+        final docs = snap.data!.docs.toList();
+
+        docs.sort((a, b) {
+          final da = a.data() as Map<String, dynamic>;
+          final db = b.data() as Map<String, dynamic>;
+
+          final ta = da["createdAt"];
+          final tb = db["createdAt"];
+
+          if (ta is Timestamp && tb is Timestamp) {
+            return tb.compareTo(ta);
+          }
+
+          return 0;
+        });
+
+        if (docs.isEmpty) {
+          return const _EmptyProfileBox(
+            icon: Icons.photo_library_rounded,
+            title: "Noch keine Momente",
+            text: "Hier erscheinen später Fotos und Videos vom Profil.",
+          );
+        }
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: docs.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            mainAxisSpacing: 7,
+            crossAxisSpacing: 7,
+            childAspectRatio: 0.78,
+          ),
+          itemBuilder: (context, i) {
+            final data = docs[i].data() as Map<String, dynamic>;
+
+            final imageUrl = (data["imageUrl"] ?? "")
+                .toString()
+                .trim()
+                .replaceAll("\n", "")
+                .replaceAll("\r", "")
+                .replaceAll(" ", "");
+
+            final type = (data["type"] ?? "photo").toString();
+            final likes = List<String>.from(data["likes"] ?? []);
+
+            return GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => MomentViewerScreen(
+                      momentId: docs[i].id,
+                      data: data,
+                    ),
+                  ),
+                );
+              },
+              child: Container(
+                clipBehavior: Clip.antiAlias,
                 decoration: BoxDecoration(
                   color: C.card,
-                  borderRadius: BorderRadius.circular(26),
-                  border: Border.all(color: C.cyan.withOpacity(0.14)),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: Colors.white.withOpacity(0.08)),
                 ),
-                child: const Text(
-                  "Noch keine Events erstellt.",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white54),
-                ),
-              )
-            else
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: docs.length,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 10,
-                  crossAxisSpacing: 10,
-                  childAspectRatio: 0.82,
-                ),
-                itemBuilder: (context, i) {
-                  final data = docs[i].data() as Map<String, dynamic>;
-                  final title = (data["title"] ?? "Event").toString();
-                  final category = (data["category"] ?? "Chill").toString();
-                  final imageUrl = (data["imageUrl"] ?? "").toString().trim();
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (imageUrl.isNotEmpty)
+                      Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const _MomentFallback(),
+                      )
+                    else
+                      const _MomentFallback(),
 
-                  return Container(
-                    clipBehavior: Clip.antiAlias,
-                    decoration: BoxDecoration(
-                      color: C.card,
-                      borderRadius: BorderRadius.circular(26),
-                      border: Border.all(color: C.cyan.withOpacity(0.16)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: C.cyan.withOpacity(0.08),
-                          blurRadius: 18,
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withOpacity(0.55),
+                            ],
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                          ),
                         ),
-                      ],
+                      ),
                     ),
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        if (imageUrl.isNotEmpty)
-                          Image.network(
-                            imageUrl,
-                            fit: BoxFit.cover,
-                            loadingBuilder: (context, child, progress) {
-                              if (progress == null) return child;
-                              return Container(
-                                color: C.card,
-                                child: const Center(
-                                  child: CircularProgressIndicator(color: C.cyan),
-                                ),
-                              );
-                            },
-                            errorBuilder: (context, error, stackTrace) {
-                              return const OutlyEventFallback();
-                            },
-                          )
-                        else
-                          const OutlyEventFallback(),
-                        Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Colors.transparent,
-                                Colors.black.withOpacity(0.86),
-                              ],
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
+
+                    if (type == "video")
+                      const Positioned(
+                        right: 8,
+                        top: 8,
+                        child: Icon(
+                          Icons.play_circle_fill_rounded,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+
+                    Positioned(
+                      left: 8,
+                      bottom: 8,
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.favorite_rounded,
+                            color: Colors.white,
+                            size: 15,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            "${likes.length}",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
                             ),
                           ),
-                        ),
-                        Positioned(
-                          left: 10,
-                          right: 10,
-                          bottom: 10,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                category,
-                                style: const TextStyle(
-                                  color: C.cyan,
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                title,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontWeight: FontWeight.w900),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  );
-                },
+                  ],
+                ),
               ),
-          ],
+            );
+          },
         );
       },
     );
   }
 }
 
-class OutlyEventFallback extends StatelessWidget {
-  const OutlyEventFallback({super.key});
+class MomentViewerScreen extends StatefulWidget {
+  final String momentId;
+  final Map<String, dynamic> data;
+
+  const MomentViewerScreen({
+    super.key,
+    required this.momentId,
+    required this.data,
+  });
+
+  @override
+  State<MomentViewerScreen> createState() => _MomentViewerScreenState();
+}
+
+class _MomentViewerScreenState extends State<MomentViewerScreen> {
+  late Map<String, dynamic> data;
+
+  @override
+  void initState() {
+    super.initState();
+    data = Map<String, dynamic>.from(widget.data);
+  }
+
+  Future<void> toggleLike() async {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final likes = List<String>.from(data["likes"] ?? []);
+    final liked = likes.contains(uid);
+
+    setState(() {
+      if (liked) {
+        likes.remove(uid);
+      } else {
+        likes.add(uid);
+      }
+
+      data["likes"] = likes;
+    });
+
+    await FirebaseFirestore.instance
+        .collection("moments")
+        .doc(widget.momentId)
+        .set({
+      "likes": liked
+          ? FieldValue.arrayRemove([uid])
+          : FieldValue.arrayUnion([uid]),
+      "updatedAt": Timestamp.now(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> deleteMoment(BuildContext context) async {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final ownerId = (data["userId"] ?? "").toString();
+
+    if (uid != ownerId) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: C.card,
+        title: const Text("Moment löschen?"),
+        content: const Text("Dieser Moment wird dauerhaft gelöscht."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Abbrechen"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              "Löschen",
+              style: TextStyle(color: Colors.redAccent),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    await FirebaseFirestore.instance
+        .collection("moments")
+        .doc(widget.momentId)
+        .delete();
+
+    if (!context.mounted) return;
+    Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection("moments")
+          .doc(widget.momentId)
+          .snapshots(),
+      builder: (context, snap) {
+        if (snap.hasData && snap.data!.data() != null) {
+          data = snap.data!.data() as Map<String, dynamic>;
+        }
+
+        final imageUrl = (data["imageUrl"] ?? "")
+            .toString()
+            .trim()
+            .replaceAll("\n", "")
+            .replaceAll("\r", "")
+            .replaceAll(" ", "");
+
+        final ownerId = (data["userId"] ?? "").toString();
+        final isMine = ownerId == uid;
+        final likes = List<String>.from(data["likes"] ?? []);
+        final liked = likes.contains(uid);
+
+        return Scaffold(
+          backgroundColor: Colors.black,
+          body: Stack(
+            children: [
+              Positioned.fill(
+                child: imageUrl.isNotEmpty
+                    ? InteractiveViewer(
+                        minScale: 1,
+                        maxScale: 4,
+                        child: SizedBox.expand(
+                          child: Image.network(
+                            imageUrl,
+                            fit: BoxFit.cover,
+                            alignment: Alignment.center,
+                            errorBuilder: (_, __, ___) =>
+                                const _MomentFallback(),
+                          ),
+                        ),
+                      )
+                    : const _MomentFallback(),
+              ),
+
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.black.withOpacity(0.45),
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.65),
+                        ],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        backgroundColor: Colors.black.withOpacity(0.55),
+                        child: IconButton(
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            color: Colors.white,
+                          ),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ),
+
+                      const Spacer(),
+
+                      if (isMine)
+                        CircleAvatar(
+                          backgroundColor: Colors.black.withOpacity(0.55),
+                          child: IconButton(
+                            icon: const Icon(
+                              Icons.delete_outline_rounded,
+                              color: Colors.redAccent,
+                            ),
+                            onPressed: () => deleteMoment(context),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+
+              Positioned(
+                left: 18,
+                right: 18,
+                bottom: 34,
+                child: SafeArea(
+                  top: false,
+                  child: Row(
+                    children: [
+                      GestureDetector(
+                        onTap: toggleLike,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: liked
+                                ? C.pink.withOpacity(0.25)
+                                : Colors.black.withOpacity(0.55),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: liked ? C.pink : Colors.white24,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                liked
+                                    ? Icons.favorite_rounded
+                                    : Icons.favorite_border_rounded,
+                                color: liked ? C.pink : Colors.white,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                "${likes.length}",
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      const Spacer(),
+
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.55),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: Colors.white24),
+                        ),
+                        child: const Text(
+                          "Moment",
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class ProfileEventGrid extends StatelessWidget {
+  final String userId;
+
+  const ProfileEventGrid({
+    super.key,
+    required this.userId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection("activities")
+          .snapshots(),
+      builder: (context, snap) {
+        if (!snap.hasData) {
+          return const Padding(
+            padding: EdgeInsets.all(20),
+            child: Center(
+              child: CircularProgressIndicator(color: C.cyan),
+            ),
+          );
+        }
+
+        final docs = snap.data!.docs;
+
+        if (docs.isEmpty) {
+          return const _EmptyProfileBox(
+            icon: Icons.local_fire_department_rounded,
+            title: "Noch keine Events",
+            text: "Events von diesem Profil erscheinen hier.",
+          );
+        }
+
+        docs.sort((a, b) {
+          final da = a.data() as Map<String, dynamic>;
+          final db = b.data() as Map<String, dynamic>;
+          final ta = da["createdAt"];
+          final tb = db["createdAt"];
+
+          if (ta is Timestamp && tb is Timestamp) {
+            return tb.compareTo(ta);
+          }
+
+          return 0;
+        });
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: docs.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: 0.82,
+          ),
+          itemBuilder: (context, i) {
+            final data = docs[i].data() as Map<String, dynamic>;
+            final title = (data["title"] ?? "Event").toString();
+            final category = (data["category"] ?? "Chill").toString();
+            final imageUrl = (data["imageUrl"] ?? "").toString().trim();
+            final color = catColor(category);
+
+            return Container(
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: C.card,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: color.withOpacity(0.22)),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withOpacity(0.10),
+                    blurRadius: 18,
+                  ),
+                ],
+              ),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (imageUrl.isNotEmpty)
+                    Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _EventFallback(color: color),
+                    )
+                  else
+                    _EventFallback(color: color),
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.88),
+                        ],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 10,
+                    right: 10,
+                    bottom: 10,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          category,
+                          style: TextStyle(
+                            color: color,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _EmptyProfileBox extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String text;
+
+  const _EmptyProfileBox({
+    required this.icon,
+    required this.title,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: C.card,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: C.cyan.withOpacity(0.14)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: C.cyan, size: 42),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 19,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            text,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white54, height: 1.35),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MomentFallback extends StatelessWidget {
+  const _MomentFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: C.card2,
+      child: const Center(
+        child: Icon(
+          Icons.photo_rounded,
+          color: Colors.white38,
+          size: 34,
+        ),
+      ),
+    );
+  }
+}
+
+class _EventFallback extends StatelessWidget {
+  final Color color;
+
+  const _EventFallback({required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -1212,7 +2114,7 @@ class OutlyEventFallback extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            C.purple.withOpacity(0.85),
+            color.withOpacity(0.85),
             C.card,
             Colors.black,
           ],
@@ -1261,359 +2163,94 @@ class _OutlyField extends StatelessWidget {
           hintStyle: const TextStyle(color: Colors.white38),
           prefixIcon: Icon(icon, color: C.cyan),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
         ),
       ),
     );
   }
 }
 
-class PrivateChatScreen extends StatefulWidget {
-  final String otherUserId;
-  final String otherUsername;
-
-  const PrivateChatScreen({
-    super.key,
-    required this.otherUserId,
-    required this.otherUsername,
-  });
-
-  @override
-  State<PrivateChatScreen> createState() => _PrivateChatScreenState();
-}
-
-class _PrivateChatScreenState extends State<PrivateChatScreen> {
-  final msg = TextEditingController();
-  final scroll = ScrollController();
-
-  @override
-  void dispose() {
-    msg.dispose();
-    scroll.dispose();
-    super.dispose();
-  }
-
-  String getChatId(String a, String b) {
-    final ids = [a, b]..sort();
-    return "${ids[0]}_${ids[1]}";
-  }
-
-  void jumpBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!scroll.hasClients) return;
-      scroll.animateTo(
-        scroll.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 260),
-        curve: Curves.easeOut,
-      );
-    });
-  }
-
-  Future<void> sendMessage() async {
-    final text = msg.text.trim();
-    if (text.isEmpty) return;
-
-    final user = FirebaseAuth.instance.currentUser!;
-    final chatId = getChatId(user.uid, widget.otherUserId);
-    final chatRef = FirebaseFirestore.instance.collection("privateChats").doc(chatId);
-
-    msg.clear();
-
-    await chatRef.set({
-      "participants": [user.uid, widget.otherUserId],
-      "lastMessage": text,
-      "lastMessageAt": Timestamp.now(),
-      "updatedAt": Timestamp.now(),
-      "unread": {
-        widget.otherUserId: FieldValue.increment(1),
-        user.uid: 0,
-      },
-    }, SetOptions(merge: true));
-
-    await chatRef.collection("messages").add({
-      "text": text,
-      "senderId": user.uid,
-      "receiverId": widget.otherUserId,
-      "createdAt": Timestamp.now(),
-      "seen": false,
-    });
-
-    jumpBottom();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
-    final chatId = getChatId(uid, widget.otherUserId);
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-
-    return Scaffold(
-      resizeToAvoidBottomInset: true,
-      backgroundColor: C.bg,
-      body: Stack(
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: Alignment.topLeft,
-                radius: 1.25,
-                colors: [
-                  C.purple.withOpacity(0.35),
-                  C.bg,
-                  Colors.black,
-                ],
-              ),
-            ),
-          ),
-          SafeArea(
-            child: Column(
-              children: [
-                _ChatHeader(otherUserId: widget.otherUserId, fallbackName: widget.otherUsername),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.fromLTRB(14, 8, 14, 8),
-                  decoration: BoxDecoration(
-                    color: C.orange.withOpacity(0.10),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: C.orange.withOpacity(0.28)),
-                  ),
-                  child: const Text(
-                    "Safety: Teile keine privaten Daten und triff dich nur an sicheren öffentlichen Orten.",
-                    style: TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                ),
-                Expanded(
-                  child: StreamBuilder<QuerySnapshot>(
-                    stream: FirebaseFirestore.instance
-                        .collection("privateChats")
-                        .doc(chatId)
-                        .collection("messages")
-                        .orderBy("createdAt")
-                        .snapshots(),
-                    builder: (context, snap) {
-                      if (!snap.hasData) {
-                        return const Center(child: CircularProgressIndicator(color: C.cyan));
-                      }
-
-                      final messages = snap.data!.docs;
-                      jumpBottom();
-
-                      if (messages.isEmpty) {
-                        return const Center(
-                          child: Text(
-                            "Sag Hi 👋",
-                            style: TextStyle(color: Colors.white54),
-                          ),
-                        );
-                      }
-
-                      return ListView.builder(
-                        controller: scroll,
-                        physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(14, 10, 14, 18),
-                        itemCount: messages.length,
-                        itemBuilder: (context, i) {
-                          final m = messages[i].data() as Map<String, dynamic>;
-                          final isMe = m["senderId"] == uid;
-
-                          return Align(
-                            alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(vertical: 5),
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                              constraints: BoxConstraints(
-                                maxWidth: MediaQuery.of(context).size.width * 0.74,
-                              ),
-                              decoration: BoxDecoration(
-                                gradient: isMe
-                                    ? const LinearGradient(colors: [C.cyan, C.purple])
-                                    : null,
-                                color: isMe ? null : C.card,
-                                borderRadius: BorderRadius.only(
-                                  topLeft: const Radius.circular(20),
-                                  topRight: const Radius.circular(20),
-                                  bottomLeft: Radius.circular(isMe ? 20 : 6),
-                                  bottomRight: Radius.circular(isMe ? 6 : 20),
-                                ),
-                                border: Border.all(
-                                  color: isMe ? Colors.transparent : C.cyan.withOpacity(0.14),
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: (isMe ? C.cyan : Colors.black).withOpacity(0.16),
-                                    blurRadius: 18,
-                                  ),
-                                ],
-                              ),
-                              child: Text(
-                                (m["text"] ?? "").toString(),
-                                style: TextStyle(
-                                  color: isMe ? Colors.black : Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
-                AnimatedPadding(
-                  duration: const Duration(milliseconds: 160),
-                  curve: Curves.easeOut,
-                  padding: EdgeInsets.only(bottom: bottomInset),
-                  child: _MessageComposer(
-                    controller: msg,
-                    onSend: sendMessage,
-                    onTap: jumpBottom,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ChatHeader extends StatelessWidget {
-  final String otherUserId;
-  final String fallbackName;
-
-  const _ChatHeader({
-    required this.otherUserId,
-    required this.fallbackName,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection("users").doc(otherUserId).snapshots(),
-      builder: (context, snap) {
-        final data = snap.data?.data() as Map<String, dynamic>? ?? {};
-        final username = (data["username"] ?? fallbackName).toString();
-        final photoUrl = (data["photoUrl"] ?? "").toString();
-        final city = (data["city"] ?? "").toString();
-        final verified = data["verified"] == true;
-
-        return Container(
-          padding: const EdgeInsets.fromLTRB(8, 8, 14, 10),
-          decoration: BoxDecoration(
-            color: C.bg.withOpacity(0.88),
-            border: Border(
-              bottom: BorderSide(color: C.cyan.withOpacity(0.10)),
-            ),
-          ),
-          child: Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back_rounded),
-                onPressed: () => Navigator.pop(context),
-              ),
-              OutlyAvatar(photoUrl: photoUrl, radius: 22),
-              const SizedBox(width: 10),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ProfileScreen(userId: otherUserId),
-                      ),
-                    );
-                  },
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      verifiedName(username, verified, size: 17),
-                      Text(
-                        city.isEmpty ? "Outly Chat" : city,
-                        style: const TextStyle(color: Colors.white54, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.more_horiz_rounded, color: Colors.white70),
-                onPressed: () {},
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _MessageComposer extends StatelessWidget {
-  final TextEditingController controller;
-  final VoidCallback onSend;
+class UploadMomentBox extends StatelessWidget {
+  final bool uploading;
   final VoidCallback onTap;
 
-  const _MessageComposer({
-    required this.controller,
-    required this.onSend,
+  const UploadMomentBox({
+    super.key,
+    required this.uploading,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.92),
-        border: Border(
-          top: BorderSide(color: C.cyan.withOpacity(0.13)),
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: C.card,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: C.cyan.withOpacity(0.22)),
-              ),
-              child: TextField(
-                controller: controller,
-                onTap: onTap,
-                minLines: 1,
-                maxLines: 4,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  hintText: "Nachricht schreiben...",
-                  hintStyle: TextStyle(color: Colors.white38),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-                ),
-              ),
+    return GestureDetector(
+      onTap: uploading ? null : onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: C.card,
+          borderRadius: BorderRadius.circular(26),
+          border: Border.all(color: C.cyan.withOpacity(0.22)),
+          boxShadow: [
+            BoxShadow(
+              color: C.cyan.withOpacity(0.08),
+              blurRadius: 20,
             ),
-          ),
-          const SizedBox(width: 10),
-          GestureDetector(
-            onTap: onSend,
-            child: Container(
-              height: 50,
-              width: 50,
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              height: 52,
+              width: 52,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: const LinearGradient(colors: [C.cyan, C.purple]),
-                boxShadow: [
-                  BoxShadow(
-                    color: C.cyan.withOpacity(0.28),
-                    blurRadius: 22,
+                gradient: const LinearGradient(
+                  colors: [C.cyan, C.purple],
+                ),
+              ),
+              child: uploading
+                  ? const Padding(
+                      padding: EdgeInsets.all(14),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.black,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.add_a_photo_rounded,
+                      color: Colors.black,
+                    ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    uploading ? "Lade Moment hoch..." : "Moment hochladen",
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    "Foto zu deinem Profil hinzufügen",
+                    style: TextStyle(color: Colors.white54),
                   ),
                 ],
               ),
-              child: const Icon(Icons.send_rounded, color: Colors.black),
             ),
-          ),
-        ],
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: Colors.white38,
+            ),
+          ],
+        ),
       ),
     );
   }

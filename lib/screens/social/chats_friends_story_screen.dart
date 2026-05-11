@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
+import '../chat/private_chat_screen.dart' as chat;
 
 import '../../core/app_colors.dart';
 import '../../core/event_utils.dart';
@@ -368,7 +369,7 @@ class FriendUserCard extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => PrivateChatScreen(
+                        builder: (_) => chat.PrivateChatScreen(
                           otherUserId: userId,
                           otherUsername: username,
                         ),
@@ -807,108 +808,137 @@ class ChatsList extends StatelessWidget {
           );
         }
 
-        return StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection("activities")
-              .where("participants", arrayContains: uid)
-              .snapshots(),
-          builder: (context, activitySnap) {
-            if (!activitySnap.hasData) {
-              return const Padding(
-                padding: EdgeInsets.only(top: 60),
-                child: Center(child: CircularProgressIndicator(color: C.cyan)),
-              );
-            }
+        final privateChats = privateSnap.data!.docs.toList();
 
-            final privateChats = privateSnap.data!.docs.toList();
-            final activityChats = activitySnap.data!.docs.where((doc) {
-              final data = doc.data() as Map<String, dynamic>;
-              return data["hasChat"] == true && isEventActive(data);
-            }).toList();
+        privateChats.sort((a, b) {
+          final ad = a.data() as Map<String, dynamic>;
+          final bd = b.data() as Map<String, dynamic>;
 
-            if (privateChats.isEmpty && activityChats.isEmpty) {
-              return const Padding(
-                padding: EdgeInsets.only(top: 50),
-                child: InfoCard(
-                  title: "Noch keine Chats",
-                  text: "Private Chats und Event-Chats erscheinen hier.",
-                ),
-              );
-            }
+          final at = ad["lastMessageTime"];
+          final bt = bd["lastMessageTime"];
 
-            return Column(
-              children: [
-                ...privateChats.map((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  final participants = List<String>.from(data["participants"] ?? []);
+          if (at is Timestamp && bt is Timestamp) {
+            return bt.compareTo(at);
+          }
 
-                  final otherUserId = participants.firstWhere(
-                    (id) => id != uid,
-                    orElse: () => "",
-                  );
+          return 0;
+        });
 
-                  if (otherUserId.isEmpty) return const SizedBox.shrink();
+        if (privateChats.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.only(top: 50),
+            child: InfoCard(
+              title: "Noch keine Chats",
+              text: "Starte einen Chat über Freunde oder User-Suche.",
+            ),
+          );
+        }
 
-                  return FutureBuilder<DocumentSnapshot>(
-                    future: FirebaseFirestore.instance
-                        .collection("users")
-                        .doc(otherUserId)
-                        .get(),
-                    builder: (context, userSnap) {
-                      if (!userSnap.hasData) return const SizedBox.shrink();
+        return Column(
+          children: privateChats.map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            final participants = List<String>.from(data["participants"] ?? []);
 
-                      final userData =
-                          userSnap.data!.data() as Map<String, dynamic>? ?? {};
+            final otherUserId = participants.firstWhere(
+              (id) => id != uid,
+              orElse: () => "",
+            );
 
-                      if (userData["isBanned"] == true) {
-                        return const SizedBox.shrink();
-                      }
+            if (otherUserId.isEmpty) return const SizedBox.shrink();
 
-                      final username = userData["username"] ?? "user";
+            final lastMessage = (data["lastMessage"] ?? "Privater Chat").toString();
+            final lastSenderId = (data["lastSenderId"] ?? "").toString();
+            final seenBy = List<String>.from(data["seenBy"] ?? []);
+            final unread = lastSenderId != uid && !seenBy.contains(uid);
 
-                      return ChatTile(
-                        color: C.cyan,
-                        icon: Icons.person,
-                        title: "@$username",
-                        subtitle: data["lastMessage"] ?? "Privater Chat",
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => PrivateChatScreen(
-                                otherUserId: otherUserId,
-                                otherUsername: username,
-                              ),
+            return FutureBuilder<DocumentSnapshot>(
+              future: FirebaseFirestore.instance
+                  .collection("users")
+                  .doc(otherUserId)
+                  .get(),
+              builder: (context, userSnap) {
+                if (!userSnap.hasData) return const SizedBox.shrink();
+
+                final userData =
+                    userSnap.data!.data() as Map<String, dynamic>? ?? {};
+
+                if (userData["isBanned"] == true) return const SizedBox.shrink();
+
+                final username = (userData["username"] ?? "user").toString();
+                final photoUrl = (userData["photoUrl"] ?? "").toString();
+                final verified = userData["verified"] == true;
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: unread ? C.cyan.withOpacity(0.10) : C.card,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: unread
+                          ? C.cyan.withOpacity(0.55)
+                          : Colors.white10,
+                    ),
+                    boxShadow: [
+                      if (unread)
+                        BoxShadow(
+                          color: C.cyan.withOpacity(0.18),
+                          blurRadius: 22,
+                        ),
+                    ],
+                  ),
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: OutlyAvatar(
+                      photoUrl: photoUrl,
+                      radius: 27,
+                    ),
+                    title: verifiedName(username, verified, size: 17),
+                    subtitle: Text(
+                      lastMessage,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: unread ? Colors.white : Colors.white54,
+                        fontWeight: unread ? FontWeight.w900 : FontWeight.w500,
+                      ),
+                    ),
+                    trailing: unread
+                        ? Container(
+                            height: 12,
+                            width: 12,
+                            decoration: const BoxDecoration(
+                              color: C.cyan,
+                              shape: BoxShape.circle,
                             ),
-                          );
-                        },
-                      );
-                    },
-                  );
-                }),
-
-                ...activityChats.map((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  final category = data["category"] ?? "Chill";
-
-                  return ChatTile(
-                    color: catColor(category),
-                    icon: catIcon(category),
-                    title: data["title"] ?? "Event",
-                    subtitle: data["place"] ?? "Event-Chat öffnen",
+                          )
+                        : const Icon(
+                            Icons.chevron_right_rounded,
+                            color: Colors.white38,
+                          ),
                     onTap: () {
+                      FirebaseFirestore.instance
+                          .collection("privateChats")
+                          .doc(doc.id)
+                          .set({
+                        "seenBy": FieldValue.arrayUnion([uid]),
+                      }, SetOptions(merge: true));
+
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => ActivityDetailScreen(activityId: doc.id),
+                          builder: (_) => chat.PrivateChatScreen(
+                            otherUserId: otherUserId,
+                            otherUsername: username,
+                          ),
                         ),
                       );
                     },
-                  );
-                }),
-              ],
+                  ),
+                );
+              },
             );
-          },
+          }).toList(),
         );
       },
     );

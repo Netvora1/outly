@@ -10,10 +10,8 @@ import '../../widgets/auth/gradient_button.dart';
 import '../../widgets/auth/outly_logo.dart';
 import '../../widgets/common/circle_icon_button.dart';
 import '../../widgets/common/info_card.dart';
-import '../../widgets/common/message_input.dart';
 import '../../widgets/common/outly_avatar.dart';
 import '../../widgets/common/verified_name.dart';
-
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -98,16 +96,19 @@ class _HomeScreenState extends State<HomeScreen> {
       final data = doc.data() as Map<String, dynamic>;
       final participants = List.from(data["participants"] ?? []);
       final max = data["maxPeople"] ?? 0;
+
       return max > 0 && participants.length >= max * 0.7;
     }).length;
   }
 
   int peopleOutCount(List<QueryDocumentSnapshot> docs) {
     int total = 0;
+
     for (final doc in docs) {
       final data = doc.data() as Map<String, dynamic>;
       total += List.from(data["participants"] ?? []).length;
     }
+
     return total;
   }
 
@@ -117,41 +118,37 @@ class _HomeScreenState extends State<HomeScreen> {
     required int fomoCount,
   }) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      padding: const EdgeInsets.fromLTRB(22, 22, 22, 24),
+      margin: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(38),
+        borderRadius: BorderRadius.circular(30),
         gradient: const LinearGradient(
           colors: [
-            Color(0xFF22081F),
-            Color(0xFF0B1020),
+            Color(0xFF151020),
+            Color(0xFF08111D),
             Color(0xFF05060D),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        border: Border.all(color: C.pink.withOpacity(0.28)),
+        border: Border.all(color: C.cyan.withOpacity(0.20)),
         boxShadow: [
           BoxShadow(
-            color: C.pink.withOpacity(0.28),
-            blurRadius: 34,
-            offset: const Offset(0, 14),
-          ),
-          BoxShadow(
-            color: C.cyan.withOpacity(0.13),
-            blurRadius: 42,
+            color: C.cyan.withOpacity(0.10),
+            blurRadius: 26,
+            offset: const Offset(0, 12),
           ),
         ],
       ),
       child: Stack(
         children: [
           Positioned(
-            right: -28,
-            top: -26,
+            right: -24,
+            top: -30,
             child: Icon(
-              Icons.local_fire_department,
-              size: 160,
-              color: C.orange.withOpacity(0.07),
+              Icons.explore_rounded,
+              size: 145,
+              color: C.cyan.withOpacity(0.045),
             ),
           ),
           Column(
@@ -165,89 +162,70 @@ class _HomeScreenState extends State<HomeScreen> {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const NotificationsScreen(),
+                        ),
                       );
                     },
                     child: Container(
-                      width: 48,
-                      height: 48,
+                      width: 44,
+                      height: 44,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.white.withOpacity(0.07),
+                        color: Colors.white.withOpacity(0.06),
                         border: Border.all(color: C.cyan.withOpacity(0.25)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: C.cyan.withOpacity(0.20),
-                            blurRadius: 18,
-                          ),
-                        ],
                       ),
-                      child: const Icon(Icons.notifications_none, color: C.cyan),
+                      child: const Icon(
+                        Icons.notifications_none_rounded,
+                        color: C.cyan,
+                      ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
-              ShaderMask(
-                shaderCallback: (bounds) {
-                  return const LinearGradient(
-                    colors: [
-                      Color(0xFFFF4D8D),
-                      Color(0xFFFFB84D),
-                      Color(0xFF33D6FF),
-                    ],
-                  ).createShader(bounds);
-                },
-                child: const Text(
-                  "OUTLY TODAY",
-                  style: TextStyle(
-                    fontSize: 42,
-                    height: 1,
-                    letterSpacing: 1.1,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
+
+              const SizedBox(height: 16),
+
               const Text(
-                "Was geht gerade wirklich?",
+                "Was geht heute in deiner Nähe?",
                 style: TextStyle(
-                  fontSize: 24,
+                  fontSize: 30,
+                  height: 1.05,
                   fontWeight: FontWeight.w900,
                 ),
               ),
+
               const SizedBox(height: 8),
+
               Text(
-                "Live Events, echte Leute und Aktivitäten, bei denen du nicht nur zuschaust.",
+                "Echte Leute. Echte Aktivitäten. Weniger scrollen, mehr erleben.",
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.70),
+                  color: Colors.white.withOpacity(0.68),
                   fontSize: 14,
-                  height: 1.45,
-                  fontWeight: FontWeight.w500,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 20),
-              Row(
+
+              const SizedBox(height: 16),
+
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
                 children: [
-                  _HomeStatCard(
-                    icon: Icons.bolt,
-                    value: "$eventCount",
-                    label: "Live",
+                  _MiniStatPill(
+                    icon: Icons.bolt_rounded,
+                    text: "$eventCount Live",
                     color: C.green,
                   ),
-                  const SizedBox(width: 10),
-                  _HomeStatCard(
-                    icon: Icons.groups_2,
-                    value: "$peopleCount",
-                    label: "People",
+                  _MiniStatPill(
+                    icon: Icons.groups_2_rounded,
+                    text: "$peopleCount Leute",
                     color: C.cyan,
                   ),
-                  const SizedBox(width: 10),
-                  _HomeStatCard(
-                    icon: Icons.local_fire_department,
-                    value: "$fomoCount",
-                    label: "Fast voll",
+                  _MiniStatPill(
+                    icon: Icons.local_fire_department_rounded,
+                    text: "$fomoCount fast voll",
                     color: C.orange,
                   ),
                 ],
@@ -273,7 +251,9 @@ class _HomeScreenState extends State<HomeScreen> {
               .snapshots(),
           builder: (context, snap) {
             if (!snap.hasData) {
-              return const Center(child: CircularProgressIndicator(color: C.cyan));
+              return const Center(
+                child: CircularProgressIndicator(color: C.cyan),
+              );
             }
 
             final docs = snap.data!.docs.where((doc) {
@@ -293,7 +273,10 @@ class _HomeScreenState extends State<HomeScreen> {
               final ta = da["startAt"] ?? da["createdAt"];
               final tb = db["startAt"] ?? db["createdAt"];
 
-              if (ta is Timestamp && tb is Timestamp) return ta.compareTo(tb);
+              if (ta is Timestamp && tb is Timestamp) {
+                return ta.compareTo(tb);
+              }
+
               return 0;
             });
 
@@ -311,17 +294,47 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
 
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
                   child: TextField(
                     onChanged: (v) => setState(() => search = v),
-                    decoration: const InputDecoration(
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    decoration: InputDecoration(
                       hintText: "Suche Events, Orte oder Vibes...",
-                      prefixIcon: Icon(Icons.search, color: C.cyan),
+                      hintStyle: const TextStyle(color: Colors.white38),
+                      prefixIcon: const Icon(
+                        Icons.search_rounded,
+                        color: C.cyan,
+                      ),
+                      filled: true,
+                      fillColor: C.card.withOpacity(0.92),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(22),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(22),
+                        borderSide: BorderSide(
+                          color: Colors.white.withOpacity(0.08),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(22),
+                        borderSide: BorderSide(
+                          color: C.cyan.withOpacity(0.45),
+                        ),
+                      ),
                     ),
                   ),
                 ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
 
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -330,7 +343,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       Expanded(
                         child: _HomeFilterPill(
                           text: "Heute",
-                          icon: Icons.local_fire_department,
+                          icon: Icons.local_fire_department_rounded,
                           active: selectedTime == "Heute",
                           color: C.orange,
                           onTap: () => setState(() => selectedTime = "Heute"),
@@ -340,7 +353,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       Expanded(
                         child: _HomeFilterPill(
                           text: "Demnächst",
-                          icon: Icons.calendar_month,
+                          icon: Icons.calendar_month_rounded,
                           active: selectedTime == "Demnächst",
                           color: C.purple2,
                           onTap: () => setState(() => selectedTime = "Demnächst"),
@@ -350,7 +363,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
 
                 CategorySelector(
                   categories: categories,
@@ -360,7 +373,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 if (docs.isEmpty)
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 80, 24, 24),
+                    padding: const EdgeInsets.fromLTRB(24, 46, 24, 24),
                     child: InfoCard(
                       title: "Noch nichts los",
                       text: search.isNotEmpty
@@ -370,29 +383,34 @@ class _HomeScreenState extends State<HomeScreen> {
                   )
                 else ...[
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 4),
+                    padding: const EdgeInsets.fromLTRB(18, 16, 18, 2),
                     child: Row(
                       children: [
                         const Expanded(
                           child: Text(
-                            "Top Pick für dich",
+                            "Heute live",
                             style: TextStyle(
-                              fontSize: 25,
+                              fontSize: 23,
                               fontWeight: FontWeight.w900,
                             ),
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                          decoration: BoxDecoration(
-                            color: C.orange.withOpacity(0.14),
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(color: C.orange.withOpacity(0.35)),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 7,
                           ),
-                          child: const Text(
-                            "HOT",
-                            style: TextStyle(
-                              color: C.orange,
+                          decoration: BoxDecoration(
+                            color: C.cyan.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: C.cyan.withOpacity(0.32),
+                            ),
+                          ),
+                          child: Text(
+                            "${docs.length} gefunden",
+                            style: const TextStyle(
+                              color: C.cyan,
                               fontWeight: FontWeight.w900,
                             ),
                           ),
@@ -401,74 +419,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
 
-                  Builder(
-                    builder: (_) {
-                      final data = docs.first.data() as Map<String, dynamic>;
-
-                      return ActivityCard(
-                        id: docs.first.id,
-                        title: data["title"] ?? "",
-                        place: data["place"] ?? "",
-                        date: data["date"] ?? "",
-                        time: data["time"] ?? "",
-                        category: data["category"] ?? "Chill",
-                        participants: List.from(data["participants"] ?? []),
-                        max: data["maxPeople"] ?? 0,
-                        imageUrl: data["imageUrl"] ?? "",
-                        visibility: data["visibility"] ?? "public",
-                        likes: List<String>.from(data["likes"] ?? []),
-                      );
-                    },
-                  ),
-
-                  if (fomoCount > 0)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 8, 18, 4),
-                      child: Container(
-                        padding: const EdgeInsets.all(15),
-                        decoration: BoxDecoration(
-                          color: C.orange.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(color: C.orange.withOpacity(0.35)),
-                          boxShadow: [
-                            BoxShadow(
-                              color: C.orange.withOpacity(0.10),
-                              blurRadius: 20,
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.local_fire_department, color: C.orange),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                "$fomoCount Event${fomoCount == 1 ? "" : "s"} fast voll. Warte nicht zu lange.",
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                  if (docs.length > 1)
-                    const Padding(
-                      padding: EdgeInsets.fromLTRB(18, 18, 18, 0),
-                      child: Text(
-                        "Live Feed",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-
-                  ...docs.skip(1).map((doc) {
+                  ...docs.map((doc) {
                     final data = doc.data() as Map<String, dynamic>;
 
                     return ActivityCard(
@@ -495,51 +446,40 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class _HomeStatCard extends StatelessWidget {
+class _MiniStatPill extends StatelessWidget {
   final IconData icon;
-  final String value;
-  final String label;
+  final String text;
   final Color color;
 
-  const _HomeStatCard({
+  const _MiniStatPill({
     required this.icon,
-    required this.value,
-    required this.label,
+    required this.text,
     required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 13),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.12),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color.withOpacity(0.35)),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(height: 5),
-            Text(
-              value,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.w900,
-                fontSize: 20,
-              ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.11),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withOpacity(0.28)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 17),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
             ),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white54,
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -566,16 +506,16 @@ class _HomeFilterPill extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(vertical: 14),
+        padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
           color: active ? color : C.card,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: active ? color : color.withOpacity(0.35)),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: active ? color : color.withOpacity(0.25)),
           boxShadow: active
               ? [
                   BoxShadow(
-                    color: color.withOpacity(0.30),
-                    blurRadius: 20,
+                    color: color.withOpacity(0.22),
+                    blurRadius: 16,
                   ),
                 ]
               : [],
@@ -583,8 +523,12 @@ class _HomeFilterPill extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: active ? Colors.black : color, size: 19),
-            const SizedBox(width: 8),
+            Icon(
+              icon,
+              color: active ? Colors.black : color,
+              size: 18,
+            ),
+            const SizedBox(width: 7),
             Text(
               text,
               style: TextStyle(
@@ -614,7 +558,7 @@ class CategorySelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 55,
+      height: 48,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
@@ -629,30 +573,24 @@ class CategorySelector extends StatelessWidget {
             onTap: () => onChanged(cat),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
-              margin: const EdgeInsets.symmetric(horizontal: 6),
-              padding: const EdgeInsets.symmetric(horizontal: 18),
+              margin: const EdgeInsets.symmetric(horizontal: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 15),
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(18),
-                color: isSelected ? color.withOpacity(0.20) : C.card,
+                borderRadius: BorderRadius.circular(16),
+                color: isSelected ? color.withOpacity(0.18) : C.card,
                 border: Border.all(
-                  color: isSelected ? color : Colors.white.withOpacity(0.12),
+                  color: isSelected ? color : Colors.white.withOpacity(0.10),
                 ),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: color.withOpacity(0.30),
-                          blurRadius: 18,
-                        ),
-                      ]
-                    : [],
               ),
               child: Row(
                 children: [
                   Icon(
-                    cat == "Alle" ? Icons.auto_awesome : catIcon(cat),
+                    cat == "Alle"
+                        ? Icons.auto_awesome_rounded
+                        : catIcon(cat),
                     color: isSelected ? color : Colors.white54,
-                    size: 17,
+                    size: 16,
                   ),
                   const SizedBox(width: 7),
                   Text(
@@ -671,6 +609,11 @@ class CategorySelector extends StatelessWidget {
     );
   }
 }
+
+// ============================
+// TEIL 2 / 3
+// ACTIVITY CARD + ACTION BUTTON
+// ============================
 
 class ActivityCard extends StatelessWidget {
   final String id;
@@ -733,6 +676,7 @@ class ActivityCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser!.uid;
     final color = catColor(category);
+
     final full = max > 0 && participants.length >= max;
     final almostFull = max > 0 && participants.length >= max * 0.7 && !full;
     final liked = likes.contains(uid);
@@ -759,7 +703,7 @@ class ActivityCard extends StatelessWidget {
         child: Center(
           child: Icon(
             catIcon(category),
-            size: 82,
+            size: 78,
             color: Colors.white.withOpacity(0.95),
           ),
         ),
@@ -776,20 +720,20 @@ class ActivityCard extends StatelessWidget {
         );
       },
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-        height: 285,
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+        height: 265,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(34),
+          borderRadius: BorderRadius.circular(30),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.34),
-              blurRadius: 30,
-              offset: const Offset(0, 14),
+              color: color.withOpacity(0.24),
+              blurRadius: 24,
+              offset: const Offset(0, 12),
             ),
           ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(34),
+          borderRadius: BorderRadius.circular(30),
           child: Stack(
             children: [
               Positioned.fill(
@@ -799,6 +743,7 @@ class ActivityCard extends StatelessWidget {
                         fit: BoxFit.cover,
                         loadingBuilder: (context, child, progress) {
                           if (progress == null) return child;
+
                           return Container(
                             color: C.card2,
                             child: const Center(
@@ -819,9 +764,9 @@ class ActivityCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        Colors.black.withOpacity(0.04),
-                        Colors.black.withOpacity(0.28),
-                        Colors.black.withOpacity(0.86),
+                        Colors.black.withOpacity(0.05),
+                        Colors.black.withOpacity(0.25),
+                        Colors.black.withOpacity(0.88),
                       ],
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
@@ -831,13 +776,21 @@ class ActivityCard extends StatelessWidget {
               ),
 
               Positioned(
-                top: 15,
-                left: 15,
+                top: 14,
+                left: 14,
                 child: Row(
                   children: [
-                    _cardBadge(category, color, textColor: Colors.black),
+                    _cardBadge(
+                      category,
+                      color,
+                      textColor: Colors.black,
+                    ),
                     const SizedBox(width: 7),
-                    _cardBadge("$date • $time", Colors.white, textColor: Colors.black),
+                    _cardBadge(
+                      "$date • $time",
+                      Colors.white,
+                      textColor: Colors.black,
+                    ),
                   ],
                 ),
               ),
@@ -864,19 +817,16 @@ class ActivityCard extends StatelessWidget {
 
               if (almostFull || full)
                 Positioned(
-                  left: 15,
-                  top: 58,
+                  left: 14,
+                  top: 56,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 11,
+                      vertical: 7,
+                    ),
                     decoration: BoxDecoration(
                       color: full ? Colors.redAccent : C.orange,
                       borderRadius: BorderRadius.circular(15),
-                      boxShadow: [
-                        BoxShadow(
-                          color: (full ? Colors.redAccent : C.orange).withOpacity(0.32),
-                          blurRadius: 16,
-                        ),
-                      ],
                     ),
                     child: Text(
                       full ? "Voll" : "Fast voll",
@@ -901,15 +851,21 @@ class ActivityCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 26,
+                        fontSize: 25,
                         fontWeight: FontWeight.w900,
                         height: 1.05,
                       ),
                     ),
+
                     const SizedBox(height: 7),
+
                     Row(
                       children: [
-                        const Icon(Icons.location_on_outlined, color: Colors.white70, size: 17),
+                        const Icon(
+                          Icons.location_on_outlined,
+                          color: Colors.white70,
+                          size: 17,
+                        ),
                         const SizedBox(width: 5),
                         Expanded(
                           child: Text(
@@ -921,11 +877,13 @@ class ActivityCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 14),
+
+                    const SizedBox(height: 13),
+
                     Row(
                       children: [
                         SizedBox(
-                          width: 80,
+                          width: 78,
                           height: 30,
                           child: Stack(
                             children: List.generate(
@@ -938,24 +896,41 @@ class ActivityCard extends StatelessWidget {
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     color: Colors.white24,
-                                    border: Border.all(color: Colors.white, width: 1.5),
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 1.5,
+                                    ),
                                   ),
-                                  child: const Icon(Icons.person, size: 15),
+                                  child: const Icon(
+                                    Icons.person,
+                                    size: 15,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                         ),
+
                         Text(
-                          max > 0 ? "${participants.length}/$max" : "${participants.length}",
+                          max > 0
+                              ? "${participants.length}/$max"
+                              : "${participants.length}",
                           style: const TextStyle(
                             color: Colors.white70,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(width: 14),
-                        Icon(Icons.favorite, color: liked ? C.pink : Colors.white54, size: 18),
+
+                        const SizedBox(width: 13),
+
+                        Icon(
+                          Icons.favorite,
+                          color: liked ? C.pink : Colors.white54,
+                          size: 18,
+                        ),
+
                         const SizedBox(width: 4),
+
                         Text(
                           "${likes.length}",
                           style: const TextStyle(
@@ -963,7 +938,9 @@ class ActivityCard extends StatelessWidget {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+
                         const Spacer(),
+
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: full ? Colors.white24 : color,
@@ -972,19 +949,26 @@ class ActivityCard extends StatelessWidget {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(18),
                             ),
-                            padding: const EdgeInsets.symmetric(horizontal: 19, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 18,
+                              vertical: 11,
+                            ),
                           ),
                           onPressed: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => ActivityDetailScreen(activityId: id),
+                                builder: (_) => ActivityDetailScreen(
+                                  activityId: id,
+                                ),
                               ),
                             );
                           },
                           child: Text(
                             full ? "Voll" : "Ansehen",
-                            style: const TextStyle(fontWeight: FontWeight.w900),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                            ),
                           ),
                         ),
                       ],
@@ -999,7 +983,11 @@ class ActivityCard extends StatelessWidget {
     );
   }
 
-  Widget _cardBadge(String text, Color color, {Color textColor = Colors.black}) {
+  Widget _cardBadge(
+    String text,
+    Color color, {
+    Color textColor = Colors.black,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
@@ -1041,7 +1029,9 @@ class _CircleActionButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.black.withOpacity(0.42),
           shape: BoxShape.circle,
-          border: Border.all(color: Colors.white.withOpacity(0.14)),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.14),
+          ),
           boxShadow: [
             BoxShadow(
               color: color.withOpacity(0.18),
@@ -1049,18 +1039,23 @@ class _CircleActionButton extends StatelessWidget {
             ),
           ],
         ),
-        child: Icon(icon, color: color, size: 21),
+        child: Icon(
+          icon,
+          color: color,
+          size: 21,
+        ),
       ),
     );
   }
 }
 
-/* ACTIVITY DETAIL */
-
 class ActivityDetailScreen extends StatefulWidget {
   final String activityId;
 
-  const ActivityDetailScreen({super.key, required this.activityId});
+  const ActivityDetailScreen({
+    super.key,
+    required this.activityId,
+  });
 
   @override
   State<ActivityDetailScreen> createState() => _ActivityDetailScreenState();
@@ -1101,7 +1096,9 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
     final joinMode = data["joinMode"] ?? "open";
     final creatorId = (data["creatorId"] ?? "").toString();
 
-    final ref = FirebaseFirestore.instance.collection("activities").doc(widget.activityId);
+    final ref = FirebaseFirestore.instance
+        .collection("activities")
+        .doc(widget.activityId);
 
     if (participants.contains(uid)) {
       await ref.update({
@@ -1174,7 +1171,9 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
   }
 
   Future<void> acceptRequest(String userId) async {
-    final ref = FirebaseFirestore.instance.collection("activities").doc(widget.activityId);
+    final ref = FirebaseFirestore.instance
+        .collection("activities")
+        .doc(widget.activityId);
 
     await ref.update({
       "pendingRequests": FieldValue.arrayRemove([userId]),
@@ -1194,7 +1193,9 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
   }
 
   Future<void> declineRequest(String userId) async {
-    final ref = FirebaseFirestore.instance.collection("activities").doc(widget.activityId);
+    final ref = FirebaseFirestore.instance
+        .collection("activities")
+        .doc(widget.activityId);
 
     await ref.update({
       "pendingRequests": FieldValue.arrayRemove([userId]),
@@ -1210,10 +1211,16 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
 
     try {
       final user = FirebaseAuth.instance.currentUser!;
-      final userDoc = await FirebaseFirestore.instance.collection("users").doc(user.uid).get();
+      final userDoc = await FirebaseFirestore.instance
+          .collection("users")
+          .doc(user.uid)
+          .get();
+
       final userData = userDoc.data() ?? {};
 
-      final activityRef = FirebaseFirestore.instance.collection("activities").doc(widget.activityId);
+      final activityRef = FirebaseFirestore.instance
+          .collection("activities")
+          .doc(widget.activityId);
 
       await activityRef.collection("chat").add({
         "text": text,
@@ -1259,7 +1266,10 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text("Löschen", style: TextStyle(color: Colors.redAccent)),
+            child: const Text(
+              "Löschen",
+              style: TextStyle(color: Colors.redAccent),
+            ),
           ),
         ],
       ),
@@ -1267,7 +1277,10 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
 
     if (confirm != true) return;
 
-    await FirebaseFirestore.instance.collection("activities").doc(widget.activityId).delete();
+    await FirebaseFirestore.instance
+        .collection("activities")
+        .doc(widget.activityId)
+        .delete();
 
     if (!mounted) return;
     Navigator.pop(context);
@@ -1285,7 +1298,10 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
       "createdAt": Timestamp.now(),
     });
 
-    await FirebaseFirestore.instance.collection("activities").doc(widget.activityId).set({
+    await FirebaseFirestore.instance
+        .collection("activities")
+        .doc(widget.activityId)
+        .set({
       "reportedCount": FieldValue.increment(1),
       "riskFlags": FieldValue.arrayUnion(["reported"]),
       "updatedAt": Timestamp.now(),
@@ -1367,7 +1383,8 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
-        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment:
+            isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isMe) ...[
@@ -1396,7 +1413,8 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                 ],
               ),
               child: Column(
-                crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                crossAxisAlignment:
+                    isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                 children: [
                   if (!isMe)
                     Padding(
@@ -1452,12 +1470,16 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
             .snapshots(),
         builder: (context, chatSnap) {
           if (!chatSnap.hasData) {
-            return const Center(child: CircularProgressIndicator(color: C.cyan));
+            return const Center(
+              child: CircularProgressIndicator(color: C.cyan),
+            );
           }
 
           final messages = chatSnap.data!.docs;
 
-          WidgetsBinding.instance.addPostFrameCallback((_) => scrollChatToBottom());
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            scrollChatToBottom();
+          });
 
           if (messages.isEmpty) {
             return const Center(
@@ -1475,6 +1497,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
             itemCount: messages.length,
             itemBuilder: (context, i) {
               final message = messages[i].data() as Map<String, dynamic>;
+
               return chatBubble(
                 message: message,
                 isMe: message["senderId"] == uid,
@@ -1564,14 +1587,21 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
       resizeToAvoidBottomInset: true,
       backgroundColor: C.bg,
       body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance.collection("activities").doc(widget.activityId).snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection("activities")
+            .doc(widget.activityId)
+            .snapshots(),
         builder: (context, snap) {
           if (!snap.hasData) {
-            return const Center(child: CircularProgressIndicator(color: C.cyan));
+            return const Center(
+              child: CircularProgressIndicator(color: C.cyan),
+            );
           }
 
           if (!snap.data!.exists) {
-            return const Center(child: Text("Aktivität wurde gelöscht"));
+            return const Center(
+              child: Text("Aktivität wurde gelöscht"),
+            );
           }
 
           final data = snap.data!.data() as Map<String, dynamic>;
@@ -1636,7 +1666,10 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 7,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: color.withOpacity(0.92),
                                     borderRadius: BorderRadius.circular(16),
@@ -1674,6 +1707,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                         ],
                       ),
                     ),
+
                     Padding(
                       padding: const EdgeInsets.all(20),
                       child: Column(
@@ -1683,20 +1717,26 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                             children: [
                               _DetailMiniCard(
                                 icon: Icons.groups_2_outlined,
-                                title: maxPeople > 0 ? "${participants.length}/$maxPeople" : "${participants.length}",
+                                title: maxPeople > 0
+                                    ? "${participants.length}/$maxPeople"
+                                    : "${participants.length}",
                                 subtitle: "dabei",
                                 color: color,
                               ),
                               const SizedBox(width: 10),
                               _DetailMiniCard(
-                                icon: joinMode == "request" ? Icons.how_to_reg : Icons.bolt,
+                                icon: joinMode == "request"
+                                    ? Icons.how_to_reg
+                                    : Icons.bolt,
                                 title: joinMode == "request" ? "Anfrage" : "Direkt",
                                 subtitle: "Beitritt",
                                 color: joinMode == "request" ? C.orange : C.green,
                               ),
                             ],
                           ),
+
                           const SizedBox(height: 18),
+
                           if (description.isNotEmpty)
                             Container(
                               width: double.infinity,
@@ -1704,7 +1744,9 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                               decoration: BoxDecoration(
                                 color: C.card,
                                 borderRadius: BorderRadius.circular(24),
-                                border: Border.all(color: color.withOpacity(0.22)),
+                                border: Border.all(
+                                  color: color.withOpacity(0.22),
+                                ),
                               ),
                               child: Text(
                                 description,
@@ -1714,7 +1756,9 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                                 ),
                               ),
                             ),
+
                           const SizedBox(height: 16),
+
                           GradientButton(
                             text: joined
                                 ? "Nicht mehr dabei"
@@ -1723,8 +1767,10 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                                     : joinMode == "request"
                                         ? "Anfrage senden"
                                         : "Ich bin dabei 🔥",
-                            onPressed: full && !joined ? () {} : () => joinOrLeave(data),
+                            onPressed:
+                                full && !joined ? () {} : () => joinOrLeave(data),
                           ),
+
                           if (isOwner && pending.isNotEmpty) ...[
                             const SizedBox(height: 24),
                             const Text(
@@ -1738,7 +1784,9 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                             const SizedBox(height: 10),
                             ...pending.map((userId) => pendingUserTile(userId)),
                           ],
+
                           const SizedBox(height: 24),
+
                           Row(
                             children: [
                               const Expanded(
@@ -1753,11 +1801,16 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                               ),
                               if (joined)
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: C.cyan.withOpacity(0.12),
                                     borderRadius: BorderRadius.circular(999),
-                                    border: Border.all(color: C.cyan.withOpacity(0.25)),
+                                    border: Border.all(
+                                      color: C.cyan.withOpacity(0.25),
+                                    ),
                                   ),
                                   child: const Text(
                                     "Live",
@@ -1770,11 +1823,14 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                                 ),
                             ],
                           ),
+
                           const SizedBox(height: 12),
+
                           if (!joined)
                             const InfoCard(
                               title: "Chat gesperrt",
-                              text: "Du musst beim Event dabei sein, um den Chat zu sehen.",
+                              text:
+                                  "Du musst beim Event dabei sein, um den Chat zu sehen.",
                             )
                           else
                             activityChat(uid),
@@ -1784,6 +1840,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                   ],
                 ),
               ),
+
               if (joined)
                 SafeArea(
                   top: false,
@@ -1792,7 +1849,9 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                     decoration: BoxDecoration(
                       color: Colors.black.withOpacity(0.96),
                       border: Border(
-                        top: BorderSide(color: C.cyan.withOpacity(0.16)),
+                        top: BorderSide(
+                          color: C.cyan.withOpacity(0.16),
+                        ),
                       ),
                     ),
                     child: Row(
@@ -1806,7 +1865,10 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                             onSubmitted: (_) => sendMessage(),
                             decoration: const InputDecoration(
                               hintText: "In den Event Chat schreiben...",
-                              prefixIcon: Icon(Icons.chat_bubble_outline, color: C.cyan),
+                              prefixIcon: Icon(
+                                Icons.chat_bubble_outline,
+                                color: C.cyan,
+                              ),
                             ),
                           ),
                         ),
@@ -1891,7 +1953,10 @@ class _DetailMiniCard extends StatelessWidget {
                   ),
                   Text(
                     subtitle,
-                    style: const TextStyle(color: Colors.white54, fontSize: 12),
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
@@ -1902,7 +1967,6 @@ class _DetailMiniCard extends StatelessWidget {
     );
   }
 }
-
 
 class OutlySelectBox extends StatelessWidget {
   final String text;
@@ -2004,206 +2068,190 @@ class NotificationsScreen extends StatelessWidget {
   }
 
   @override
-Widget build(BuildContext context) {
-  final uid = FirebaseAuth.instance.currentUser!.uid;
+  Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
 
-  return Scaffold(
-    backgroundColor: C.bg,
-    appBar: AppBar(
+    return Scaffold(
       backgroundColor: C.bg,
-      elevation: 0,
-      title: const Text(
-        "Benachrichtigungen",
-        style: TextStyle(fontWeight: FontWeight.bold),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => markAllAsRead(uid),
-          child: Text(
-            "Alle gelesen",
-            style: TextStyle(color: C.cyan),
-          ),
+      appBar: AppBar(
+        backgroundColor: C.bg,
+        elevation: 0,
+        title: const Text(
+          "Benachrichtigungen",
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
-      ],
-    ),
-    body: StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection("notifications")
-          .where("toUserId", isEqualTo: uid)
-          .snapshots(),
-      builder: (context, snap) {
-        if (!snap.hasData) {
-          return Center(
-            child: CircularProgressIndicator(color: C.cyan),
-          );
-        }
-
-        final docs = snap.data!.docs.toList();
-
-        docs.sort((a, b) {
-          final da = a.data() as Map<String, dynamic>;
-          final db = b.data() as Map<String, dynamic>;
-
-          final ta = da["createdAt"];
-          final tb = db["createdAt"];
-
-          if (ta is Timestamp && tb is Timestamp) {
-            return tb.compareTo(ta);
+        actions: [
+          TextButton(
+            onPressed: () => markAllAsRead(uid),
+            child: Text(
+              "Alle gelesen",
+              style: TextStyle(color: C.cyan),
+            ),
+          ),
+        ],
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection("notifications")
+            .where("toUserId", isEqualTo: uid)
+            .snapshots(),
+        builder: (context, snap) {
+          if (!snap.hasData) {
+            return Center(
+              child: CircularProgressIndicator(color: C.cyan),
+            );
           }
 
-          return 0;
-        });
+          final docs = snap.data!.docs.toList();
 
-        if (docs.isEmpty) {
-          return const Center(
-            child: InfoCard(
-              title: "Noch nichts da",
-              text:
-                  "Hier erscheinen neue Follower, Event-Updates, Join-Anfragen und Chat-Hinweise.",
-            ),
-          );
-        }
+          docs.sort((a, b) {
+            final da = a.data() as Map<String, dynamic>;
+            final db = b.data() as Map<String, dynamic>;
 
-        return ListView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 140),
-          children: docs.map((doc) {
-            final data = doc.data() as Map<String, dynamic>;
+            final ta = da["createdAt"];
+            final tb = db["createdAt"];
 
-            final type = (data["type"] ?? "").toString();
-            final text = (data["text"] ?? "").toString();
-            final fromUserId = (data["fromUserId"] ?? "").toString();
-            final targetId = (data["targetId"] ?? "").toString();
-            final read = data["read"] == true;
+            if (ta is Timestamp && tb is Timestamp) {
+              return tb.compareTo(ta);
+            }
 
-            final color = colorForType(type);
+            return 0;
+          });
 
-            return FutureBuilder<DocumentSnapshot>(
-              future: fromUserId.isEmpty
-                  ? null
-                  : FirebaseFirestore.instance
-                      .collection("users")
-                      .doc(fromUserId)
-                      .get(),
-              builder: (context, userSnap) {
-                final userData =
-                    userSnap.data?.data() as Map<String, dynamic>? ?? {};
+          if (docs.isEmpty) {
+            return const Center(
+              child: InfoCard(
+                title: "Noch nichts da",
+                text:
+                    "Hier erscheinen neue Follower, Event-Updates, Join-Anfragen und Chat-Hinweise.",
+              ),
+            );
+          }
 
-                final username = userData["username"] ?? "Outly";
-                final photoUrl = (userData["photoUrl"] ?? "").toString();
+          return ListView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 140),
+            children: docs.map((doc) {
+              final data = doc.data() as Map<String, dynamic>;
 
-                return GestureDetector(
-                  onTap: () async {
-                    await markAsRead(doc.reference);
+              final type = (data["type"] ?? "").toString();
+              final text = (data["text"] ?? "").toString();
+              final fromUserId = (data["fromUserId"] ?? "").toString();
+              final targetId = (data["targetId"] ?? "").toString();
+              final read = data["read"] == true;
+              final color = colorForType(type);
 
-                    if (type == "follow" && fromUserId.isNotEmpty) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => Scaffold(
-                            appBar: AppBar(
-                              title: const Text("Profil"),
-                            ),
-                            body: const Center(
-                              child: Text("Coming soon"),
+              return FutureBuilder<DocumentSnapshot>(
+                future: fromUserId.isEmpty
+                    ? null
+                    : FirebaseFirestore.instance
+                        .collection("users")
+                        .doc(fromUserId)
+                        .get(),
+                builder: (context, userSnap) {
+                  final userData =
+                      userSnap.data?.data() as Map<String, dynamic>? ?? {};
+
+                  final username = userData["username"] ?? "Outly";
+                  final photoUrl = (userData["photoUrl"] ?? "").toString();
+
+                  return GestureDetector(
+                    onTap: () async {
+                      await markAsRead(doc.reference);
+
+                      if ((type == "join" || type == "request") &&
+                          targetId.isNotEmpty) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ActivityDetailScreen(
+                              activityId: targetId,
                             ),
                           ),
+                        );
+                      }
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: read ? C.card : color.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: read
+                              ? Colors.white.withOpacity(0.08)
+                              : color.withOpacity(0.45),
                         ),
-                      );
-                    }
-
-                    if ((type == "join" || type == "request") &&
-                        targetId.isNotEmpty) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              ActivityDetailScreen(activityId: targetId),
-                        ),
-                      );
-                    }
-                  },
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: read ? C.card : color.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: read
-                            ? Colors.white.withOpacity(0.08)
-                            : color.withOpacity(0.45),
+                        boxShadow: [
+                          if (!read)
+                            BoxShadow(
+                              color: color.withOpacity(0.18),
+                              blurRadius: 18,
+                            ),
+                        ],
                       ),
-                      boxShadow: [
-                        if (!read)
-                          BoxShadow(
-                            color: color.withOpacity(0.18),
-                            blurRadius: 18,
-                          ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Stack(
-                          children: [
-                            OutlyAvatar(photoUrl: photoUrl, radius: 25),
-                            Positioned(
-                              right: 0,
-                              bottom: 0,
-                              child: CircleAvatar(
-                                radius: 10,
-                                backgroundColor: color,
-                                child: Icon(
-                                  iconForType(type),
-                                  size: 12,
-                                  color: Colors.black,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Row(
+                        children: [
+                          Stack(
                             children: [
-                              Text(
-                                "@$username",
-                                style: TextStyle(
-                                  color: read ? Colors.white70 : color,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                text,
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  height: 1.35,
+                              OutlyAvatar(photoUrl: photoUrl, radius: 25),
+                              Positioned(
+                                right: 0,
+                                bottom: 0,
+                                child: CircleAvatar(
+                                  radius: 10,
+                                  backgroundColor: color,
+                                  child: Icon(
+                                    iconForType(type),
+                                    size: 12,
+                                    color: Colors.black,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                        if (!read)
-                          Container(
-                            width: 9,
-                            height: 9,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: color,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "@$username",
+                                  style: TextStyle(
+                                    color: read ? Colors.white70 : color,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  text,
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    height: 1.35,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                      ],
+                          if (!read)
+                            Container(
+                              width: 9,
+                              height: 9,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: color,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                );
-              },
-            );
-          }).toList(),
-        );
-      },
-    ),
-  );
-  } 
+                  );
+                },
+              );
+            }).toList(),
+          );
+        },
+      ),
+    );
+  }
 }
