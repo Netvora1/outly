@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../core/app_colors.dart';
 import '../home/home_screen.dart';
 import '../profile/user_profile_screen.dart';
+
+const String ownerUid = "roduqZRk4GgXLCQIZGIFAWN0UUg1";
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key, this.initialTab = 0});
@@ -14,8 +17,20 @@ class AdminScreen extends StatefulWidget {
   State<AdminScreen> createState() => _AdminScreenState();
 }
 
+class _AdminTab {
+  final String title;
+  final IconData icon;
+  final Widget Function() builder;
+
+  const _AdminTab({
+    required this.title,
+    required this.icon,
+    required this.builder,
+  });
+}
+
 class _AdminScreenState extends State<AdminScreen> {
-  late int tab;
+  int tab = 0;
 
   final broadcastTitle = TextEditingController();
   final broadcastMessage = TextEditingController();
@@ -24,15 +39,14 @@ class _AdminScreenState extends State<AdminScreen> {
   bool sendingBroadcast = false;
   String userSearch = "";
 
-  final tabs = const [
-    "Dashboard",
-    "Support",
-    "Reports",
-    "User",
-    "Events",
-    "Momente",
-    "Broadcast",
-  ];
+  String myUid = "";
+  String myRole = "user";
+
+  bool get isOwner => myUid == ownerUid;
+  bool get isAdmin => isOwner || myRole == "admin";
+  bool get isModerator => isAdmin || myRole == "moderator";
+  bool get isSupport => isModerator || myRole == "support";
+  bool get canUseAdmin => isOwner || isAdmin || isModerator || isSupport;
 
   @override
   void initState() {
@@ -46,6 +60,62 @@ class _AdminScreenState extends State<AdminScreen> {
     broadcastMessage.dispose();
     searchUser.dispose();
     super.dispose();
+  }
+
+  List<_AdminTab> get visibleTabs {
+    final list = <_AdminTab>[];
+
+    if (isAdmin || isOwner) {
+      list.add(_AdminTab(
+        title: "Dashboard",
+        icon: Icons.dashboard_rounded,
+        builder: dashboard,
+      ));
+    }
+
+    if (isSupport) {
+      list.add(_AdminTab(
+        title: "Support",
+        icon: Icons.support_agent_rounded,
+        builder: support,
+      ));
+    }
+
+    if (isModerator) {
+      list.add(_AdminTab(
+        title: "Reports",
+        icon: Icons.flag_rounded,
+        builder: reports,
+      ));
+
+      list.add(_AdminTab(
+        title: "Events",
+        icon: Icons.local_fire_department_rounded,
+        builder: events,
+      ));
+
+      list.add(_AdminTab(
+        title: "Momente",
+        icon: Icons.photo_library_rounded,
+        builder: moments,
+      ));
+    }
+
+    if (isAdmin || isOwner) {
+      list.add(_AdminTab(
+        title: "User",
+        icon: Icons.people_alt_rounded,
+        builder: users,
+      ));
+
+      list.add(_AdminTab(
+        title: "Broadcast",
+        icon: Icons.campaign_rounded,
+        builder: broadcast,
+      ));
+    }
+
+    return list;
   }
 
   Future<int> count(String col) async {
@@ -63,6 +133,8 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   Future<void> updateUser(String uid, Map<String, dynamic> data) async {
+    if (!isAdmin && !isOwner) return;
+
     await FirebaseFirestore.instance.collection("users").doc(uid).set({
       ...data,
       "updatedAt": Timestamp.now(),
@@ -150,79 +222,172 @@ class _AdminScreenState extends State<AdminScreen> {
     );
   }
 
+  Color roleColor(String role) {
+    switch (role) {
+      case "admin":
+        return Colors.amber;
+      case "moderator":
+        return C.purple;
+      case "support":
+        return C.green;
+      default:
+        return Colors.white54;
+    }
+  }
+
+  String roleName(String role) {
+    if (isOwner) return "Owner";
+    switch (role) {
+      case "admin":
+        return "Admin";
+      case "moderator":
+        return "Moderator";
+      case "support":
+        return "Support";
+      default:
+        return "User";
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: C.bg,
-      appBar: AppBar(
-        backgroundColor: C.bg,
-        elevation: 0,
-        title: const Text(
-          "Outly Admin Control",
-          style: TextStyle(fontWeight: FontWeight.w900),
-        ),
-      ),
-      body: Column(
-        children: [
-          Container(
-            height: 58,
-            margin: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-            padding: const EdgeInsets.all(5),
-            decoration: BoxDecoration(
-              color: C.card,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: C.cyan.withOpacity(0.14)),
-            ),
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: tabs.length,
-              itemBuilder: (context, i) {
-                final active = tab == i;
+    final user = FirebaseAuth.instance.currentUser;
 
-                return GestureDetector(
-                  onTap: () => setState(() => tab = i),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    margin: const EdgeInsets.only(right: 6),
-                    padding: const EdgeInsets.symmetric(horizontal: 15),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: active ? C.cyan : Colors.transparent,
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: Text(
-                      tabs[i],
-                      style: TextStyle(
-                        color: active ? Colors.black : Colors.white60,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
+    if (user == null) {
+      return const Scaffold(
+        backgroundColor: C.bg,
+        body: Center(child: Text("Nicht eingeloggt")),
+      );
+    }
+
+    myUid = user.uid;
+
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection("users").doc(user.uid).snapshots(),
+      builder: (context, snap) {
+        final data = snap.data?.data() as Map<String, dynamic>? ?? {};
+        myRole = (data["role"] ?? "user").toString();
+
+        final tabs = visibleTabs;
+
+        if (!canUseAdmin || tabs.isEmpty) {
+          return Scaffold(
+            backgroundColor: C.bg,
+            appBar: AppBar(
+              backgroundColor: C.bg,
+              title: const Text("Outly Control"),
+            ),
+            body: const Center(
+              child: Text(
+                "Kein Zugriff.",
+                style: TextStyle(color: Colors.white54),
+              ),
+            ),
+          );
+        }
+
+        if (tab >= tabs.length) tab = 0;
+
+        return Scaffold(
+          backgroundColor: C.bg,
+          appBar: AppBar(
+            backgroundColor: C.bg,
+            elevation: 0,
+            title: const Text(
+              "Outly Control Center",
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ),
+          body: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
+                child: _AdminHero(
+                  role: roleName(myRole),
+                  roleColor: isOwner ? C.orange : roleColor(myRole),
+                  subtitle: isOwner
+                      ? "Voller Plattformzugriff"
+                      : isAdmin
+                          ? "Admin Verwaltung & Moderation"
+                          : myRole == "moderator"
+                              ? "Moderation & Safety"
+                              : "Support Tickets & Hilfe",
+                ),
+              ),
+              Container(
+                height: 60,
+                margin: const EdgeInsets.fromLTRB(14, 8, 14, 10),
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: C.card,
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: C.cyan.withOpacity(0.14)),
+                ),
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: tabs.length,
+                  itemBuilder: (context, i) {
+                    final active = tab == i;
+                    final item = tabs[i];
+
+                    return GestureDetector(
+                      onTap: () => setState(() => tab = i),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        margin: const EdgeInsets.only(right: 7),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: active ? C.cyan : Colors.transparent,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: active
+                              ? [
+                                  BoxShadow(
+                                    color: C.cyan.withOpacity(0.25),
+                                    blurRadius: 18,
+                                  ),
+                                ]
+                              : [],
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              item.icon,
+                              size: 17,
+                              color: active ? Colors.black : Colors.white60,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              item.title,
+                              style: TextStyle(
+                                color: active ? Colors.black : Colors.white60,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ),
-                );
-              },
-            ),
+                    );
+                  },
+                ),
+              ),
+              Expanded(
+                child: IndexedStack(
+                  index: tab,
+                  children: tabs.map((e) => e.builder()).toList(),
+                ),
+              ),
+            ],
           ),
-          Expanded(
-            child: IndexedStack(
-              index: tab,
-              children: [
-                dashboard(),
-                support(),
-                reports(),
-                users(),
-                events(),
-                moments(),
-                broadcast(),
-              ],
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   Widget dashboard() {
+    if (!isAdmin && !isOwner) return const SizedBox.shrink();
+
     return FutureBuilder<List<int>>(
       future: Future.wait([
         count("users"),
@@ -243,18 +408,25 @@ class _AdminScreenState extends State<AdminScreen> {
                 borderRadius: BorderRadius.circular(34),
                 gradient: LinearGradient(
                   colors: [
-                    C.purple.withOpacity(0.65),
+                    C.purple.withOpacity(0.75),
                     C.card,
-                    C.cyan.withOpacity(0.18),
+                    C.cyan.withOpacity(0.20),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 border: Border.all(color: C.cyan.withOpacity(0.25)),
+                boxShadow: [
+                  BoxShadow(
+                    color: C.cyan.withOpacity(0.12),
+                    blurRadius: 34,
+                    offset: const Offset(0, 14),
+                  ),
+                ],
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.admin_panel_settings, color: C.cyan, size: 48),
+                  Icon(Icons.admin_panel_settings_rounded, color: C.cyan, size: 50),
                   SizedBox(width: 14),
                   Expanded(
                     child: Column(
@@ -269,7 +441,7 @@ class _AdminScreenState extends State<AdminScreen> {
                         ),
                         SizedBox(height: 4),
                         Text(
-                          "Alles verwalten: User, Events, Reports, Support und Momente.",
+                          "Live Übersicht über Outly, Support, Reports und Inhalte.",
                           style: TextStyle(color: Colors.white60),
                         ),
                       ],
@@ -290,13 +462,13 @@ class _AdminScreenState extends State<AdminScreen> {
                 AdminStatCard(
                   title: "User",
                   value: "${data[0]}",
-                  icon: Icons.people_alt,
+                  icon: Icons.people_alt_rounded,
                   color: C.cyan,
                 ),
                 AdminStatCard(
                   title: "Events",
                   value: "${data[1]}",
-                  icon: Icons.local_fire_department,
+                  icon: Icons.local_fire_department_rounded,
                   color: C.orange,
                 ),
                 AdminStatCard(
@@ -308,13 +480,13 @@ class _AdminScreenState extends State<AdminScreen> {
                 AdminStatCard(
                   title: "Support offen",
                   value: "${data[3]}",
-                  icon: Icons.support_agent,
+                  icon: Icons.support_agent_rounded,
                   color: C.green,
                 ),
                 AdminStatCard(
                   title: "Reports offen",
                   value: "${data[4]}",
-                  icon: Icons.flag,
+                  icon: Icons.flag_rounded,
                   color: Colors.redAccent,
                 ),
               ],
@@ -326,6 +498,8 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   Widget support() {
+    if (!isSupport) return const SizedBox.shrink();
+
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection("support").snapshots(),
       builder: (context, snap) {
@@ -347,7 +521,7 @@ class _AdminScreenState extends State<AdminScreen> {
         return ListView(
           padding: const EdgeInsets.all(18),
           children: [
-            sectionTitle("Support Tickets"),
+            sectionTitle("Outly Support Center"),
             if (docs.isEmpty)
               const AdminEmpty(text: "Keine Support-Anfragen vorhanden.")
             else
@@ -359,21 +533,33 @@ class _AdminScreenState extends State<AdminScreen> {
                 final message = (data["message"] ?? "").toString();
                 final status = (data["status"] ?? "open").toString();
                 final priority = (data["priority"] ?? "normal").toString();
+                final type = (data["type"] ?? "support").toString();
                 final adminReply = (data["adminReply"] ?? "").toString();
                 final closed = status == "closed";
 
+                final color = type == "bug"
+                    ? C.orange
+                    : type == "feedback"
+                        ? C.purple
+                        : type == "safety"
+                            ? Colors.redAccent
+                            : closed
+                                ? C.green
+                                : C.cyan;
+
                 return AdminActionCard(
-                  color: closed ? C.green : C.orange,
-                  icon: closed ? Icons.check_circle : Icons.support_agent,
+                  color: color,
+                  icon: closed ? Icons.check_circle_rounded : Icons.support_agent_rounded,
                   title: subject,
-                  subtitle: "$email • $status • $priority",
+                  subtitle: "$type • $status • $priority",
                   body:
-                      "$message\n\nUser: $uid${adminReply.isNotEmpty ? "\n\nAntwort: $adminReply" : ""}",
+                      "$message\n\nUser: $uid\nE-Mail: $email${adminReply.isNotEmpty ? "\n\nAntwort: $adminReply" : ""}",
                   actions: [
-                    ElevatedButton(
-                      onPressed: uid.isEmpty ? null : () => openUser(uid),
-                      child: const Text("User öffnen"),
-                    ),
+                    if (isAdmin || isOwner)
+                      ElevatedButton(
+                        onPressed: uid.isEmpty ? null : () => openUser(uid),
+                        child: const Text("User öffnen"),
+                      ),
                     ElevatedButton(
                       onPressed: () => updateDoc(doc.reference, {
                         "status": "reviewing",
@@ -395,20 +581,21 @@ class _AdminScreenState extends State<AdminScreen> {
                         onPressed: () => closeDoc(doc.reference),
                         child: const Text("Schließen"),
                       ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.redAccent,
-                        foregroundColor: Colors.black,
+                    if (isAdmin || isOwner)
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent,
+                          foregroundColor: Colors.black,
+                        ),
+                        onPressed: () async {
+                          final ok = await confirm(
+                            "Ticket löschen?",
+                            "Dieses Support Ticket wird gelöscht.",
+                          );
+                          if (ok) deleteDoc(doc.reference);
+                        },
+                        child: const Text("Löschen"),
                       ),
-                      onPressed: () async {
-                        final ok = await confirm(
-                          "Ticket löschen?",
-                          "Dieses Support Ticket wird gelöscht.",
-                        );
-                        if (ok) deleteDoc(doc.reference);
-                      },
-                      child: const Text("Löschen"),
-                    ),
                   ],
                 );
               }),
@@ -438,7 +625,7 @@ class _AdminScreenState extends State<AdminScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text(
-                  "Support Antwort",
+                  "Outly Support Antwort",
                   style: TextStyle(
                     color: C.cyan,
                     fontSize: 24,
@@ -468,15 +655,14 @@ class _AdminScreenState extends State<AdminScreen> {
                     await updateDoc(ref, {
                       "adminReply": text,
                       "status": "answered",
+                      "answeredAt": Timestamp.now(),
                     });
 
                     if (uid.isNotEmpty) {
-                      await FirebaseFirestore.instance
-                          .collection("notifications")
-                          .add({
+                      await FirebaseFirestore.instance.collection("notifications").add({
                         "toUserId": uid,
-                        "fromUserId": "admin",
-                        "type": "admin",
+                        "fromUserId": "outly",
+                        "type": "support_reply",
                         "title": "Support Antwort",
                         "text": text,
                         "targetId": "",
@@ -500,6 +686,8 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   Widget reports() {
+    if (!isModerator) return const SizedBox.shrink();
+
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection("reports").snapshots(),
       builder: (context, snap) {
@@ -521,7 +709,7 @@ class _AdminScreenState extends State<AdminScreen> {
         return ListView(
           padding: const EdgeInsets.all(18),
           children: [
-            sectionTitle("Reports & Moderation"),
+            sectionTitle("Moderation Reports"),
             if (docs.isEmpty)
               const AdminEmpty(text: "Keine Meldungen vorhanden.")
             else
@@ -553,44 +741,41 @@ class _AdminScreenState extends State<AdminScreen> {
                       child: const Text("User öffnen"),
                     ),
                     ElevatedButton(
-                      onPressed: targetActivityId.isEmpty
-                          ? null
-                          : () => openEvent(targetActivityId),
+                      onPressed: targetActivityId.isEmpty ? null : () => openEvent(targetActivityId),
                       child: const Text("Event öffnen"),
                     ),
                     if (targetActivityId.isNotEmpty)
                       ElevatedButton(
                         onPressed: () {
-                          FirebaseFirestore.instance
-                              .collection("activities")
-                              .doc(targetActivityId)
-                              .set({
+                          FirebaseFirestore.instance.collection("activities").doc(targetActivityId).set({
                             "hidden": true,
                             "updatedAt": Timestamp.now(),
                           }, SetOptions(merge: true));
                         },
                         child: const Text("Event verstecken"),
                       ),
-                    if (targetUserId.isNotEmpty)
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.redAccent,
-                          foregroundColor: Colors.black,
+                    if (isAdmin || isOwner)
+                      if (targetUserId.isNotEmpty)
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.redAccent,
+                            foregroundColor: Colors.black,
+                          ),
+                          onPressed: () => updateUser(targetUserId, {
+                            "isBanned": true,
+                          }),
+                          child: const Text("User bannen"),
                         ),
-                        onPressed: () => updateUser(targetUserId, {
-                          "isBanned": true,
-                        }),
-                        child: const Text("User bannen"),
-                      ),
                     if (!closed)
                       ElevatedButton(
                         onPressed: () => closeDoc(doc.reference),
                         child: const Text("Schließen"),
                       ),
-                    ElevatedButton(
-                      onPressed: () => doc.reference.delete(),
-                      child: const Text("Report löschen"),
-                    ),
+                    if (isAdmin || isOwner)
+                      ElevatedButton(
+                        onPressed: () => doc.reference.delete(),
+                        child: const Text("Report löschen"),
+                      ),
                   ],
                 );
               }),
@@ -601,6 +786,8 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   Widget users() {
+    if (!isAdmin && !isOwner) return const SizedBox.shrink();
+
     return Column(
       children: [
         Padding(
@@ -665,6 +852,22 @@ class _AdminScreenState extends State<AdminScreen> {
                       final trust = data["trustScore"] ?? 100;
                       final role = (data["role"] ?? "user").toString();
 
+                      if (doc.id == ownerUid && !isOwner) {
+                        return AdminActionCard(
+                          color: C.orange,
+                          icon: Icons.lock_rounded,
+                          title: "@$username",
+                          subtitle: "Owner Account geschützt",
+                          body: "Dieser Account ist geschützt und kann nicht verändert werden.",
+                          actions: [
+                            ElevatedButton(
+                              onPressed: () => openUser(doc.id),
+                              child: const Text("Profil"),
+                            ),
+                          ],
+                        );
+                      }
+
                       return AdminActionCard(
                         color: banned ? Colors.redAccent : C.cyan,
                         icon: banned ? Icons.block : Icons.person,
@@ -712,7 +915,12 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   void showRoleSheet(String uid, String currentRole) {
-    final roles = ["user", "support", "moderator", "admin", "owner"];
+    if (!isAdmin && !isOwner) return;
+    if (uid == ownerUid && !isOwner) return;
+
+    final roles = isOwner
+        ? ["user", "support", "moderator", "admin"]
+        : ["user", "support", "moderator", "admin"];
 
     showModalBottomSheet(
       context: context,
@@ -732,15 +940,18 @@ class _AdminScreenState extends State<AdminScreen> {
                     fontWeight: FontWeight.w900,
                   ),
                 ),
+                const SizedBox(height: 8),
+                const Text(
+                  "Owner wird nicht über die App vergeben.",
+                  style: TextStyle(color: Colors.white54),
+                ),
                 const SizedBox(height: 14),
                 ...roles.map((role) {
                   final active = currentRole == role;
 
                   return ListTile(
                     title: Text(role),
-                    trailing: active
-                        ? const Icon(Icons.check_circle, color: C.cyan)
-                        : null,
+                    trailing: active ? const Icon(Icons.check_circle, color: C.cyan) : null,
                     onTap: () async {
                       await updateUser(uid, {"role": role});
                       if (!mounted) return;
@@ -757,6 +968,9 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   void showBadgeSheet(String uid, Map<String, dynamic> data) {
+    if (!isAdmin && !isOwner) return;
+    if (uid == ownerUid && !isOwner) return;
+
     final badges = {
       "verified": "Blauer Haken",
       "creator": "Creator",
@@ -808,6 +1022,9 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   void showTrustSheet(String uid, dynamic currentTrust) {
+    if (!isAdmin && !isOwner) return;
+    if (uid == ownerUid && !isOwner) return;
+
     final controller = TextEditingController(text: "$currentTrust");
 
     showModalBottomSheet(
@@ -869,6 +1086,8 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   Widget events() {
+    if (!isModerator) return const SizedBox.shrink();
+
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection("activities").snapshots(),
       builder: (context, snap) {
@@ -906,7 +1125,7 @@ class _AdminScreenState extends State<AdminScreen> {
 
                 return AdminActionCard(
                   color: reports > 0 ? Colors.redAccent : C.orange,
-                  icon: Icons.local_fire_department,
+                  icon: Icons.local_fire_department_rounded,
                   title: title,
                   subtitle: "$category • $place",
                   body:
@@ -920,16 +1139,18 @@ class _AdminScreenState extends State<AdminScreen> {
                       onPressed: creatorId.isEmpty ? null : () => openUser(creatorId),
                       child: const Text("Creator"),
                     ),
-                    ElevatedButton(
-                      onPressed: () => showEditEventSheet(doc.reference, data),
-                      child: const Text("Ändern"),
-                    ),
-                    ElevatedButton(
-                      onPressed: () => updateDoc(doc.reference, {
-                        "featured": !featured,
-                      }),
-                      child: Text(featured ? "Unfeatured" : "Featured"),
-                    ),
+                    if (isAdmin || isOwner)
+                      ElevatedButton(
+                        onPressed: () => showEditEventSheet(doc.reference, data),
+                        child: const Text("Ändern"),
+                      ),
+                    if (isAdmin || isOwner)
+                      ElevatedButton(
+                        onPressed: () => updateDoc(doc.reference, {
+                          "featured": !featured,
+                        }),
+                        child: Text(featured ? "Unfeatured" : "Featured"),
+                      ),
                     ElevatedButton(
                       onPressed: () => updateDoc(doc.reference, {
                         "hidden": !hidden,
@@ -960,11 +1181,12 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   void showEditEventSheet(DocumentReference ref, Map<String, dynamic> data) {
+    if (!isAdmin && !isOwner) return;
+
     final title = TextEditingController(text: (data["title"] ?? "").toString());
     final place = TextEditingController(text: (data["place"] ?? "").toString());
     final category = TextEditingController(text: (data["category"] ?? "").toString());
-    final description =
-        TextEditingController(text: (data["description"] ?? "").toString());
+    final description = TextEditingController(text: (data["description"] ?? "").toString());
 
     showModalBottomSheet(
       context: context,
@@ -1031,6 +1253,8 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   Widget moments() {
+    if (!isModerator) return const SizedBox.shrink();
+
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection("moments").snapshots(),
       builder: (context, snap) {
@@ -1197,19 +1421,40 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   Widget broadcast() {
+    if (!isAdmin && !isOwner) return const SizedBox.shrink();
+
     return ListView(
       padding: const EdgeInsets.all(18),
       children: [
-        sectionTitle("Nachricht an alle User"),
+        sectionTitle("Outly Broadcast"),
         Container(
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             color: C.card,
             borderRadius: BorderRadius.circular(26),
             border: Border.all(color: C.cyan.withOpacity(0.25)),
+            boxShadow: [
+              BoxShadow(
+                color: C.cyan.withOpacity(0.08),
+                blurRadius: 24,
+              ),
+            ],
           ),
           child: Column(
             children: [
+              const Row(
+                children: [
+                  Icon(Icons.campaign_rounded, color: C.cyan, size: 34),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      "Nachricht an alle Nutzer",
+                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
               TextField(
                 controller: broadcastTitle,
                 decoration: const InputDecoration(
@@ -1256,6 +1501,8 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   Future<void> sendBroadcastToAllUsers() async {
+    if (!isAdmin && !isOwner) return;
+
     final title = broadcastTitle.text.trim();
     final message = broadcastMessage.text.trim();
 
@@ -1276,8 +1523,8 @@ class _AdminScreenState extends State<AdminScreen> {
 
         batch.set(ref, {
           "toUserId": userDoc.id,
-          "fromUserId": "admin",
-          "type": "admin",
+          "fromUserId": "outly",
+          "type": "outly_news",
           "title": title,
           "text": message,
           "targetId": "",
@@ -1305,6 +1552,73 @@ class _AdminScreenState extends State<AdminScreen> {
     } finally {
       if (mounted) setState(() => sendingBroadcast = false);
     }
+  }
+}
+
+class _AdminHero extends StatelessWidget {
+  final String role;
+  final String subtitle;
+  final Color roleColor;
+
+  const _AdminHero({
+    required this.role,
+    required this.subtitle,
+    required this.roleColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        gradient: LinearGradient(
+          colors: [
+            roleColor.withOpacity(0.30),
+            C.card,
+            C.bg,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(color: roleColor.withOpacity(0.26)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              color: roleColor.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: roleColor.withOpacity(0.25)),
+            ),
+            child: Icon(Icons.admin_panel_settings_rounded, color: roleColor, size: 30),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Outly $role",
+                  style: TextStyle(
+                    color: roleColor,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  style: const TextStyle(color: Colors.white60),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -1360,6 +1674,9 @@ class AdminStatCard extends StatelessWidget {
         color: C.card,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: color.withOpacity(0.22)),
+        boxShadow: [
+          BoxShadow(color: color.withOpacity(0.06), blurRadius: 18),
+        ],
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -1407,7 +1724,10 @@ class AdminActionCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: C.card,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: color.withOpacity(0.35)),
+        border: Border.all(color: color.withOpacity(0.32)),
+        boxShadow: [
+          BoxShadow(color: color.withOpacity(0.06), blurRadius: 18),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1465,13 +1785,16 @@ class AdminEmpty extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: C.card,
         borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: C.cyan.withOpacity(0.14)),
       ),
       child: Text(
         text,
+        textAlign: TextAlign.center,
         style: const TextStyle(color: Colors.white60),
       ),
     );

@@ -28,6 +28,7 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
   LatLng? myPosition;
   bool loadingLocation = false;
   bool onlyToday = false;
+  bool mapLocked = true;
 
   final List<String> categories = const [
     "Alle",
@@ -163,6 +164,241 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
     mapController.move(first, 12.5);
   }
 
+  void openFullMap(List<QueryDocumentSnapshot> docs, LatLng center) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _FullOutlyMapScreen(
+          docs: docs,
+          center: center,
+          myPosition: myPosition,
+          radiusKm: radiusKm,
+          activityPoint: activityPoint,
+          distanceText: distanceText,
+        ),
+      ),
+    );
+  }
+
+  Widget buildMap({
+    required List<QueryDocumentSnapshot> docs,
+    required LatLng center,
+    required bool fullscreen,
+  }) {
+    return Stack(
+      children: [
+        AbsorbPointer(
+          absorbing: !fullscreen && mapLocked,
+          child: FlutterMap(
+            mapController: fullscreen ? MapController() : mapController,
+            options: MapOptions(
+              initialCenter: center,
+              initialZoom: fullscreen ? 12.8 : 12,
+              minZoom: 3,
+              maxZoom: 19,
+              interactionOptions: const InteractionOptions(
+                flags: InteractiveFlag.drag |
+                    InteractiveFlag.pinchZoom |
+                    InteractiveFlag.doubleTapZoom,
+              ),
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                userAgentPackageName: "com.clipza.outly",
+                maxZoom: 19,
+                tileProvider: NetworkTileProvider(),
+              ),
+              CircleLayer(
+                circles: [
+                  if (myPosition != null)
+                    CircleMarker(
+                      point: myPosition!,
+                      radius: radiusKm * 1000,
+                      useRadiusInMeter: true,
+                      color: C.cyan.withOpacity(0.08),
+                      borderColor: C.cyan.withOpacity(0.60),
+                      borderStrokeWidth: 2,
+                    ),
+                ],
+              ),
+              MarkerLayer(
+                markers: [
+                  if (myPosition != null)
+                    Marker(
+                      point: myPosition!,
+                      width: 74,
+                      height: 74,
+                      child: _UserPulseMarker(),
+                    ),
+                  ...docs.map((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    final category = data["category"] ?? "Chill";
+                    final color = catColor(category);
+                    final point = activityPoint(data);
+                    final participants = List.from(data["participants"] ?? []);
+                    final max = data["maxPeople"] ?? 0;
+                    final full = max > 0 && participants.length >= max;
+
+                    return Marker(
+                      point: point,
+                      width: 78,
+                      height: 78,
+                      child: GestureDetector(
+                        onTap: () {
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (_) => _MapPreviewSheet(
+                              activityId: doc.id,
+                              data: data,
+                              distance: distanceText(data),
+                            ),
+                          );
+                        },
+                        child: _OutlyEventMarker(
+                          color: color,
+                          icon: catIcon(category),
+                          count: participants.length,
+                          full: full,
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        Positioned(
+          left: 14,
+          right: 14,
+          top: 14,
+          child: _MapGlassBar(
+            text: myPosition == null
+                ? "Standort aktivieren für Events in deiner Nähe"
+                : "${docs.length} Events im Umkreis von ${radiusKm.round()} km",
+            icon: myPosition == null ? Icons.location_off : Icons.radar,
+          ),
+        ),
+
+        if (!fullscreen && mapLocked)
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () => setState(() => mapLocked = false),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.35),
+                  borderRadius: BorderRadius.circular(32),
+                ),
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.72),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: C.cyan.withOpacity(0.40)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: C.cyan.withOpacity(0.20),
+                          blurRadius: 24,
+                        ),
+                      ],
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.touch_app_rounded, color: C.cyan),
+                        SizedBox(width: 10),
+                        Text(
+                          "Map antippen zum Bewegen",
+                          style: TextStyle(
+                            color: C.cyan,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+        Positioned(
+          left: 14,
+          bottom: 14,
+          child: _MapStatusChip(
+            text: onlyToday ? "Nur heute" : "Alle Tage",
+            icon: onlyToday ? Icons.local_fire_department : Icons.calendar_month,
+            color: onlyToday ? C.orange : C.cyan,
+          ),
+        ),
+
+        Positioned(
+          right: 14,
+          top: 66,
+          child: Column(
+            children: [
+              _FloatingMapButton(
+                icon: fullscreen ? Icons.close_fullscreen : Icons.open_in_full_rounded,
+                onTap: () {
+                  if (fullscreen) {
+                    Navigator.pop(context);
+                  } else {
+                    openFullMap(docs, center);
+                  }
+                },
+              ),
+              const SizedBox(height: 10),
+              if (!fullscreen)
+                _FloatingMapButton(
+                  icon: mapLocked ? Icons.lock_rounded : Icons.lock_open_rounded,
+                  onTap: () => setState(() => mapLocked = !mapLocked),
+                ),
+            ],
+          ),
+        ),
+
+        if (!fullscreen)
+          Positioned(
+            right: 14,
+            bottom: 14,
+            child: Column(
+              children: [
+                _FloatingMapButton(
+                  icon: Icons.add,
+                  onTap: mapLocked
+                      ? () => setState(() => mapLocked = false)
+                      : () {
+                          final cam = mapController.camera;
+                          mapController.move(cam.center, cam.zoom + 1);
+                        },
+                ),
+                const SizedBox(height: 10),
+                _FloatingMapButton(
+                  icon: Icons.remove,
+                  onTap: mapLocked
+                      ? () => setState(() => mapLocked = false)
+                      : () {
+                          final cam = mapController.camera;
+                          mapController.move(cam.center, cam.zoom - 1);
+                        },
+                ),
+                const SizedBox(height: 10),
+                _FloatingMapButton(
+                  icon: Icons.my_location,
+                  onTap: loadingLocation ? () {} : loadMyPosition,
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser!.uid;
@@ -275,158 +511,62 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
                 const SizedBox(height: 16),
 
                 Container(
-                  height: 500,
+                  height: MediaQuery.of(context).size.height * 0.38,
+                  constraints: const BoxConstraints(
+                    minHeight: 270,
+                    maxHeight: 360,
+                  ),
                   clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(
                     color: C.card,
-                    borderRadius: BorderRadius.circular(36),
+                    borderRadius: BorderRadius.circular(32),
                     border: Border.all(color: C.cyan.withOpacity(0.34)),
                     boxShadow: [
                       BoxShadow(
-                        color: C.cyan.withOpacity(0.18),
-                        blurRadius: 34,
-                        offset: const Offset(0, 12),
+                        color: C.cyan.withOpacity(0.15),
+                        blurRadius: 26,
+                        offset: const Offset(0, 10),
                       ),
                       BoxShadow(
-                        color: C.purple.withOpacity(0.18),
-                        blurRadius: 42,
+                        color: C.purple.withOpacity(0.14),
+                        blurRadius: 34,
                         offset: const Offset(0, -4),
                       ),
                     ],
                   ),
-                  child: Stack(
+                  child: buildMap(
+                    docs: docs,
+                    center: center,
+                    fullscreen: false,
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: C.card,
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: C.cyan.withOpacity(0.16)),
+                  ),
+                  child: Row(
                     children: [
-                      FlutterMap(
-                        mapController: mapController,
-                        options: MapOptions(
-                          initialCenter: center,
-                          initialZoom: 12,
-                          minZoom: 3,
-                          maxZoom: 19,
-                          interactionOptions: const InteractionOptions(
-                            flags: InteractiveFlag.all,
-                          ),
-                        ),
-                        children: [
-                          TileLayer(
-                            urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                            userAgentPackageName: "com.clipza.outly",
-                            maxZoom: 19,
-                            tileProvider: NetworkTileProvider(),
-                          ),
-
-                          CircleLayer(
-                            circles: [
-                              if (myPosition != null)
-                                CircleMarker(
-                                  point: myPosition!,
-                                  radius: radiusKm * 1000,
-                                  useRadiusInMeter: true,
-                                  color: C.cyan.withOpacity(0.08),
-                                  borderColor: C.cyan.withOpacity(0.60),
-                                  borderStrokeWidth: 2,
-                                ),
-                            ],
-                          ),
-
-                          MarkerLayer(
-                            markers: [
-                              if (myPosition != null)
-                                Marker(
-                                  point: myPosition!,
-                                  width: 74,
-                                  height: 74,
-                                  child: _UserPulseMarker(),
-                                ),
-
-                              ...docs.map((doc) {
-                                final data = doc.data() as Map<String, dynamic>;
-                                final category = data["category"] ?? "Chill";
-                                final color = catColor(category);
-                                final point = activityPoint(data);
-                                final participants = List.from(data["participants"] ?? []);
-                                final max = data["maxPeople"] ?? 0;
-                                final full = max > 0 && participants.length >= max;
-
-                                return Marker(
-                                  point: point,
-                                  width: 78,
-                                  height: 78,
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      showModalBottomSheet(
-                                        context: context,
-                                        isScrollControlled: true,
-                                        backgroundColor: Colors.transparent,
-                                        builder: (_) => _MapPreviewSheet(
-                                          activityId: doc.id,
-                                          data: data,
-                                          distance: distanceText(data),
-                                        ),
-                                      );
-                                    },
-                                    child: _OutlyEventMarker(
-                                      color: color,
-                                      icon: catIcon(category),
-                                      count: participants.length,
-                                      full: full,
-                                    ),
-                                  ),
-                                );
-                              }),
-                            ],
-                          ),
-                        ],
+                      Icon(
+                        mapLocked ? Icons.lock_rounded : Icons.lock_open_rounded,
+                        color: mapLocked ? C.orange : C.green,
+                        size: 20,
                       ),
-
-                      Positioned(
-                        left: 14,
-                        right: 14,
-                        top: 14,
-                        child: _MapGlassBar(
-                          text: myPosition == null
-                              ? "Standort aktivieren für Events in deiner Nähe"
-                              : "${docs.length} Events im Umkreis von ${radiusKm.round()} km",
-                          icon: myPosition == null ? Icons.location_off : Icons.radar,
-                        ),
-                      ),
-
-                      Positioned(
-                        left: 14,
-                        bottom: 14,
-                        child: _MapStatusChip(
-                          text: onlyToday ? "Nur heute" : "Alle Tage",
-                          icon: onlyToday ? Icons.local_fire_department : Icons.calendar_month,
-                          color: onlyToday ? C.orange : C.cyan,
-                        ),
-                      ),
-
-                      Positioned(
-                        right: 14,
-                        bottom: 14,
-                        child: Column(
-                          children: [
-                            _FloatingMapButton(
-                              icon: Icons.add,
-                              onTap: () {
-                                final cam = mapController.camera;
-                                mapController.move(cam.center, cam.zoom + 1);
-                              },
-                            ),
-                            const SizedBox(height: 10),
-                            _FloatingMapButton(
-                              icon: Icons.remove,
-                              onTap: () {
-                                final cam = mapController.camera;
-                                mapController.move(cam.center, cam.zoom - 1);
-                              },
-                            ),
-                            const SizedBox(height: 10),
-                            _FloatingMapButton(
-                              icon: Icons.my_location,
-                              onTap: loadingLocation ? () {} : loadMyPosition,
-                            ),
-                          ],
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                          mapLocked
+                              ? "Map ist gesperrt – du kannst normal scrollen."
+                              : "Map ist aktiv – tippe auf Schloss, wenn Scrollen stört.",
+                          style: const TextStyle(
+                            color: Colors.white60,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ],
@@ -508,6 +648,168 @@ class _ExploreMapScreenState extends State<ExploreMapScreen> {
               ],
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _FullOutlyMapScreen extends StatefulWidget {
+  final List<QueryDocumentSnapshot> docs;
+  final LatLng center;
+  final LatLng? myPosition;
+  final double radiusKm;
+  final LatLng Function(Map<String, dynamic>) activityPoint;
+  final String Function(Map<String, dynamic>) distanceText;
+
+  const _FullOutlyMapScreen({
+    required this.docs,
+    required this.center,
+    required this.myPosition,
+    required this.radiusKm,
+    required this.activityPoint,
+    required this.distanceText,
+  });
+
+  @override
+  State<_FullOutlyMapScreen> createState() => _FullOutlyMapScreenState();
+}
+
+class _FullOutlyMapScreenState extends State<_FullOutlyMapScreen> {
+  final MapController controller = MapController();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: C.bg,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(30),
+            child: Stack(
+              children: [
+                FlutterMap(
+                  mapController: controller,
+                  options: MapOptions(
+                    initialCenter: widget.center,
+                    initialZoom: 12.8,
+                    minZoom: 3,
+                    maxZoom: 19,
+                    interactionOptions: const InteractionOptions(
+                      flags: InteractiveFlag.drag |
+                          InteractiveFlag.pinchZoom |
+                          InteractiveFlag.doubleTapZoom,
+                    ),
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                      userAgentPackageName: "com.clipza.outly",
+                      maxZoom: 19,
+                      tileProvider: NetworkTileProvider(),
+                    ),
+                    CircleLayer(
+                      circles: [
+                        if (widget.myPosition != null)
+                          CircleMarker(
+                            point: widget.myPosition!,
+                            radius: widget.radiusKm * 1000,
+                            useRadiusInMeter: true,
+                            color: C.cyan.withOpacity(0.08),
+                            borderColor: C.cyan.withOpacity(0.60),
+                            borderStrokeWidth: 2,
+                          ),
+                      ],
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        if (widget.myPosition != null)
+                          Marker(
+                            point: widget.myPosition!,
+                            width: 74,
+                            height: 74,
+                            child: _UserPulseMarker(),
+                          ),
+                        ...widget.docs.map((doc) {
+                          final data = doc.data() as Map<String, dynamic>;
+                          final category = data["category"] ?? "Chill";
+                          final color = catColor(category);
+                          final point = widget.activityPoint(data);
+                          final participants = List.from(data["participants"] ?? []);
+                          final max = data["maxPeople"] ?? 0;
+                          final full = max > 0 && participants.length >= max;
+
+                          return Marker(
+                            point: point,
+                            width: 78,
+                            height: 78,
+                            child: GestureDetector(
+                              onTap: () {
+                                showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  backgroundColor: Colors.transparent,
+                                  builder: (_) => _MapPreviewSheet(
+                                    activityId: doc.id,
+                                    data: data,
+                                    distance: widget.distanceText(data),
+                                  ),
+                                );
+                              },
+                              child: _OutlyEventMarker(
+                                color: color,
+                                icon: catIcon(category),
+                                count: participants.length,
+                                full: full,
+                              ),
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  ],
+                ),
+                Positioned(
+                  left: 14,
+                  right: 14,
+                  top: 14,
+                  child: _MapGlassBar(
+                    text: "${widget.docs.length} Events auf Outly",
+                    icon: Icons.public_rounded,
+                  ),
+                ),
+                Positioned(
+                  right: 14,
+                  top: 72,
+                  child: Column(
+                    children: [
+                      _FloatingMapButton(
+                        icon: Icons.close_fullscreen_rounded,
+                        onTap: () => Navigator.pop(context),
+                      ),
+                      const SizedBox(height: 10),
+                      _FloatingMapButton(
+                        icon: Icons.add,
+                        onTap: () {
+                          final cam = controller.camera;
+                          controller.move(cam.center, cam.zoom + 1);
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      _FloatingMapButton(
+                        icon: Icons.remove,
+                        onTap: () {
+                          final cam = controller.camera;
+                          controller.move(cam.center, cam.zoom - 1);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -1256,11 +1558,20 @@ class _MapPreviewSheet extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
               child: Column(
                 children: [
-                  _SheetInfoRow(icon: Icons.location_on_outlined, text: data["place"] ?? ""),
+                  _SheetInfoRow(
+                    icon: Icons.location_on_outlined,
+                    text: data["place"] ?? "",
+                  ),
                   const SizedBox(height: 7),
-                  _SheetInfoRow(icon: Icons.access_time, text: "${data["date"] ?? ""} ${data["time"] ?? ""}"),
+                  _SheetInfoRow(
+                    icon: Icons.access_time,
+                    text: "${data["date"] ?? ""} ${data["time"] ?? ""}",
+                  ),
                   const SizedBox(height: 7),
-                  _SheetInfoRow(icon: Icons.near_me_outlined, text: distance),
+                  _SheetInfoRow(
+                    icon: Icons.near_me_outlined,
+                    text: distance,
+                  ),
                   const SizedBox(height: 14),
                   Row(
                     children: [
@@ -1289,7 +1600,9 @@ class _MapPreviewSheet extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => ActivityDetailScreen(activityId: activityId),
+                              builder: (_) => ActivityDetailScreen(
+                                activityId: activityId,
+                              ),
                             ),
                           );
                         },

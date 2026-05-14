@@ -19,17 +19,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final supportSubject = TextEditingController();
   final supportMessage = TextEditingController();
 
-  final feedbackSubject = TextEditingController();
-  final feedbackMessage = TextEditingController();
+  final editUsername = TextEditingController();
+  final editCity = TextEditingController();
+  final editBio = TextEditingController();
+  final emailController = TextEditingController();
 
   bool sending = false;
+
+  final allVibes = const [
+    "Sport",
+    "Chill",
+    "Party",
+    "Gaming",
+    "Gym",
+    "Food",
+    "Travel",
+    "Music",
+    "Study",
+    "Business",
+    "Outdoor",
+    "Creative",
+  ];
 
   @override
   void dispose() {
     supportSubject.dispose();
     supportMessage.dispose();
-    feedbackSubject.dispose();
-    feedbackMessage.dispose();
+    editUsername.dispose();
+    editCity.dispose();
+    editBio.dispose();
+    emailController.dispose();
     super.dispose();
   }
 
@@ -54,6 +73,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ...data,
       "updatedAt": Timestamp.now(),
     }, SetOptions(merge: true));
+  }
+
+  Future<bool> confirm(BuildContext context, String title, String text) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: C.card,
+        title: Text(title),
+        content: Text(text),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Abbrechen"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Bestätigen", style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
+      ),
+    );
+
+    return result == true;
   }
 
   Future<void> resetPassword(BuildContext context) async {
@@ -81,32 +123,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     if (!context.mounted) return;
     Navigator.pop(context);
-  }
-
-  Future<bool> confirm(BuildContext context, String title, String text) async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: C.card,
-        title: Text(title),
-        content: Text(text),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text("Abbrechen"),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              "Bestätigen",
-              style: TextStyle(color: Colors.redAccent),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    return result == true;
   }
 
   Future<void> deleteAccount(BuildContext context) async {
@@ -140,11 +156,238 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (!context.mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Bitte neu einloggen und dann erneut löschen."),
-        ),
+        const SnackBar(content: Text("Bitte neu einloggen und dann erneut löschen.")),
       );
     }
+  }
+
+  void openEditProfileSheet(Map<String, dynamic> data) {
+    editUsername.text = (data["username"] ?? "").toString();
+    editCity.text = (data["city"] ?? "").toString();
+    editBio.text = (data["bio"] ?? "").toString();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) {
+        return _PremiumSheet(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const _SheetHandle(),
+              const SizedBox(height: 18),
+              const _SheetTitle(
+                icon: Icons.person_rounded,
+                title: "Profil bearbeiten",
+                subtitle: "Name, Stadt und Bio aktualisieren.",
+                color: C.cyan,
+              ),
+              const SizedBox(height: 16),
+              _SettingsInput(
+                controller: editUsername,
+                hint: "Benutzername",
+                icon: Icons.alternate_email_rounded,
+              ),
+              const SizedBox(height: 12),
+              _SettingsInput(
+                controller: editCity,
+                hint: "Stadt / Land",
+                icon: Icons.location_on_rounded,
+              ),
+              const SizedBox(height: 12),
+              _SettingsInput(
+                controller: editBio,
+                hint: "Bio",
+                icon: Icons.notes_rounded,
+                maxLines: 3,
+              ),
+              const SizedBox(height: 16),
+              _MainButton(
+                text: "Profil speichern",
+                icon: Icons.save_rounded,
+                color: C.cyan,
+                onTap: () async {
+                  await updateUserSettings({
+                    "username": editUsername.text.trim(),
+                    "city": editCity.text.trim(),
+                    "bio": editBio.text.trim(),
+                  });
+
+                  if (!context.mounted) return;
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void openVibeSheet(Map<String, dynamic> data) {
+    final selected = List<String>.from(data["interests"] ?? []).toSet();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) {
+        return StatefulBuilder(
+          builder: (context, setSheet) {
+            return _PremiumSheet(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const _SheetHandle(),
+                  const SizedBox(height: 18),
+                  const _SheetTitle(
+                    icon: Icons.auto_awesome_rounded,
+                    title: "Vibes & Interessen",
+                    subtitle: "Wähle aus, was zu dir passt.",
+                    color: C.purple,
+                  ),
+                  const SizedBox(height: 18),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: allVibes.map((vibe) {
+                      final active = selected.contains(vibe);
+
+                      return GestureDetector(
+                        onTap: () {
+                          setSheet(() {
+                            active ? selected.remove(vibe) : selected.add(vibe);
+                          });
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
+                          decoration: BoxDecoration(
+                            color: active ? C.cyan : C.card,
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: active ? C.cyan : Colors.white.withOpacity(0.10),
+                            ),
+                            boxShadow: active
+                                ? [
+                                    BoxShadow(
+                                      color: C.cyan.withOpacity(0.25),
+                                      blurRadius: 18,
+                                    ),
+                                  ]
+                                : [],
+                          ),
+                          child: Text(
+                            "#$vibe",
+                            style: TextStyle(
+                              color: active ? Colors.black : Colors.white70,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 20),
+                  _MainButton(
+                    text: "Vibes speichern",
+                    icon: Icons.check_rounded,
+                    color: C.cyan,
+                    onTap: () async {
+                      await updateUserSettings({
+                        "interests": selected.toList(),
+                      });
+
+                      if (!context.mounted) return;
+                      Navigator.pop(context);
+                    },
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void openEmailSheet() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    emailController.text = user.email ?? "";
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) {
+        return _PremiumSheet(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const _SheetHandle(),
+              const SizedBox(height: 18),
+              const _SheetTitle(
+                icon: Icons.email_rounded,
+                title: "E-Mail ändern",
+                subtitle: "Du bekommst einen Bestätigungslink an die neue E-Mail.",
+                color: C.purple,
+              ),
+              const SizedBox(height: 16),
+              _SettingsInput(
+                controller: emailController,
+                hint: "Neue E-Mail",
+                icon: Icons.email_outlined,
+              ),
+              const SizedBox(height: 14),
+              _InfoBox(
+                icon: Icons.info_outline_rounded,
+                color: C.orange,
+                text: "Aus Sicherheitsgründen kann Firebase verlangen, dass du dich neu einloggst.",
+              ),
+              const SizedBox(height: 16),
+              _MainButton(
+                text: "Bestätigung senden",
+                icon: Icons.mark_email_read_rounded,
+                color: C.cyan,
+                onTap: () async {
+                  final newEmail = emailController.text.trim();
+
+                  if (newEmail.isEmpty || !newEmail.contains("@")) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Bitte gültige E-Mail eingeben")),
+                    );
+                    return;
+                  }
+
+                  try {
+                    await user.verifyBeforeUpdateEmail(newEmail);
+
+                    await updateUserSettings({
+                      "pendingEmail": newEmail,
+                    });
+
+                    if (!context.mounted) return;
+                    Navigator.pop(context);
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Bestätigungslink gesendet ✅")),
+                    );
+                  } catch (e) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Bitte neu einloggen und erneut versuchen.")),
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Future<void> createSupportTicket({
@@ -157,141 +400,185 @@ class _SettingsScreenState extends State<SettingsScreen> {
     supportSubject.clear();
     supportMessage.clear();
 
+    final config = _SupportTypeConfig.fromType(type);
+
     await showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) {
-        return Padding(
-          padding: EdgeInsets.fromLTRB(
-            14,
-            14,
-            14,
-            MediaQuery.of(context).viewInsets.bottom + 14,
-          ),
-          child: SafeArea(
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: C.bg,
-                borderRadius: BorderRadius.circular(34),
-                border: Border.all(color: C.cyan.withOpacity(0.25)),
+        return _PremiumSheet(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const _SheetHandle(),
+              const SizedBox(height: 18),
+              _SheetTitle(
+                icon: config.icon,
+                title: config.title,
+                subtitle: config.subtitle,
+                color: config.color,
               ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const _SheetHandle(),
-                    const SizedBox(height: 18),
-                    Text(
-                      type == "bug"
-                          ? "Bug melden"
-                          : type == "feedback"
-                              ? "Feedback senden"
-                              : "Support kontaktieren",
-                      style: const TextStyle(
-                        color: C.cyan,
-                        fontSize: 25,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    _SettingsInput(
-                      controller: supportSubject,
-                      hint: "Betreff",
-                      icon: Icons.title_rounded,
-                    ),
-                    const SizedBox(height: 12),
-                    _SettingsInput(
-                      controller: supportMessage,
-                      hint: "Beschreib es genau...",
-                      icon: Icons.support_agent_rounded,
-                      maxLines: 5,
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: C.cyan,
-                        foregroundColor: Colors.black,
-                        minimumSize: const Size(double.infinity, 54),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                      ),
-                      icon: sending
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.black,
-                              ),
-                            )
-                          : const Icon(Icons.send_rounded),
-                      label: const Text(
-                        "Senden",
-                        style: TextStyle(fontWeight: FontWeight.w900),
-                      ),
-                      onPressed: sending
-                          ? null
-                          : () async {
-                              final subject = supportSubject.text.trim();
-                              final message = supportMessage.text.trim();
-
-                              if (subject.isEmpty || message.isEmpty) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text("Bitte alles ausfüllen"),
-                                  ),
-                                );
-                                return;
-                              }
-
-                              setState(() => sending = true);
-
-                              try {
-                                await FirebaseFirestore.instance
-                                    .collection("support")
-                                    .add({
-                                  "uid": user.uid,
-                                  "email": user.email ?? "",
-                                  "type": type,
-                                  "subject": subject,
-                                  "message": message,
-                                  "status": "open",
-                                  "priority": type == "bug" ? "urgent" : "normal",
-                                  "adminReply": "",
-                                  "adminNote": "",
-                                  "assignedTo": "",
-                                  "createdAt": Timestamp.now(),
-                                  "updatedAt": Timestamp.now(),
-                                  "resolvedAt": null,
-                                });
-
-                                if (!context.mounted) return;
-                                Navigator.pop(context);
-
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text("Ticket gesendet ✅"),
-                                  ),
-                                );
-                              } finally {
-                                if (mounted) setState(() => sending = false);
-                              }
-                            },
-                    ),
-                  ],
-                ),
+              const SizedBox(height: 16),
+              _SettingsInput(
+                controller: supportSubject,
+                hint: config.subjectHint,
+                icon: Icons.title_rounded,
               ),
-            ),
+              const SizedBox(height: 12),
+              _SettingsInput(
+                controller: supportMessage,
+                hint: config.messageHint,
+                icon: config.icon,
+                maxLines: 5,
+              ),
+              const SizedBox(height: 14),
+              _InfoBox(
+                icon: Icons.shield_rounded,
+                color: C.cyan,
+                text: "Deine Anfrage wird sicher an das Outly Support Team gesendet.",
+              ),
+              const SizedBox(height: 16),
+              _MainButton(
+                text: sending ? "Wird gesendet..." : "An Outly senden",
+                icon: Icons.send_rounded,
+                color: config.color,
+                loading: sending,
+                onTap: sending
+                    ? null
+                    : () async {
+                        final subject = supportSubject.text.trim();
+                        final message = supportMessage.text.trim();
+
+                        if (subject.isEmpty || message.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Bitte alles ausfüllen")),
+                          );
+                          return;
+                        }
+
+                        setState(() => sending = true);
+
+                        try {
+                          await FirebaseFirestore.instance.collection("support").add({
+                            "uid": user.uid,
+                            "email": user.email ?? "",
+                            "type": type,
+                            "subject": subject,
+                            "message": message,
+                            "status": "open",
+                            "priority": type == "bug" || type == "safety" ? "urgent" : "normal",
+                            "adminReply": "",
+                            "adminNote": "",
+                            "assignedTo": "",
+                            "createdAt": Timestamp.now(),
+                            "updatedAt": Timestamp.now(),
+                            "resolvedAt": null,
+                          });
+
+                          if (!context.mounted) return;
+                          Navigator.pop(context);
+
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Ticket gesendet ✅")),
+                          );
+                        } finally {
+                          if (mounted) setState(() => sending = false);
+                        }
+                      },
+              ),
+            ],
           ),
         );
       },
     );
   }
 
-  void openPrivacySheet(Map<String, dynamic> data) {
+  void openSupportCenter() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) {
+        return _PremiumSheet(
+          maxHeight: 0.88,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const _SheetHandle(),
+              const SizedBox(height: 18),
+              const _SheetTitle(
+                icon: Icons.support_agent_rounded,
+                title: "Support & Hilfe",
+                subtitle: "Alles rund um Hilfe, Bugs, Feedback und Sicherheit.",
+                color: C.green,
+              ),
+              const SizedBox(height: 16),
+              _SupportActionCard(
+                icon: Icons.support_agent_rounded,
+                color: C.green,
+                title: "Support kontaktieren",
+                subtitle: "Account, Events, Chat oder technische Hilfe.",
+                onTap: () {
+                  Navigator.pop(context);
+                  createSupportTicket(context: context, type: "support");
+                },
+              ),
+              _SupportActionCard(
+                icon: Icons.confirmation_number_rounded,
+                color: C.cyan,
+                title: "Meine Tickets",
+                subtitle: "Status und Antworten vom Outly Team ansehen.",
+                onTap: () {
+                  Navigator.pop(context);
+                  openSupportTickets();
+                },
+              ),
+              _SupportActionCard(
+                icon: Icons.bug_report_rounded,
+                color: C.orange,
+                title: "Bug melden",
+                subtitle: "Fehler, Crash, Upload-Problem oder Anzeige-Bug.",
+                onTap: () {
+                  Navigator.pop(context);
+                  createSupportTicket(context: context, type: "bug");
+                },
+              ),
+              _SupportActionCard(
+                icon: Icons.feedback_rounded,
+                color: C.purple,
+                title: "Feedback senden",
+                subtitle: "Ideen, Wünsche oder Verbesserungsvorschläge.",
+                onTap: () {
+                  Navigator.pop(context);
+                  createSupportTicket(context: context, type: "feedback");
+                },
+              ),
+              _SupportActionCard(
+                icon: Icons.shield_rounded,
+                color: Colors.redAccent,
+                title: "Safety Problem melden",
+                subtitle: "Gefährliches Verhalten, Fake User oder Spam.",
+                onTap: () {
+                  Navigator.pop(context);
+                  createSupportTicket(context: context, type: "safety");
+                },
+              ),
+              _SupportActionCard(
+                icon: Icons.public_rounded,
+                color: C.purple2,
+                title: "Support Center online",
+                subtitle: "Offizielle Outly Hilfe-Seite öffnen.",
+                onTap: () => openWeb("https://outly.site/support.html"),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void openPrivacyCenter(Map<String, dynamic> data) {
     final contact = (data["privacyContact"] ?? "friends").toString();
     final profile = (data["privacyProfile"] ?? "public").toString();
     final events = (data["privacyEvents"] ?? "public").toString();
@@ -299,7 +586,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: C.bg,
+      backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) {
         String contactValue = contact;
@@ -309,85 +596,84 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
         return StatefulBuilder(
           builder: (context, setSheet) {
-            return SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(18),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const _SheetHandle(),
-                    const SizedBox(height: 16),
-                    const Text(
-                      "Privatsphäre",
-                      style: TextStyle(
-                        color: C.cyan,
-                        fontSize: 25,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    _OptionDropdown(
-                      title: "Wer darf mich kontaktieren?",
-                      value: contactValue,
-                      items: const {
-                        "all": "Alle",
-                        "friends": "Nur Freunde",
-                        "none": "Niemand",
-                      },
-                      onChanged: (v) => setSheet(() => contactValue = v),
-                    ),
-                    _OptionDropdown(
-                      title: "Wer darf mein Profil sehen?",
-                      value: profileValue,
-                      items: const {
-                        "public": "Alle",
-                        "friends": "Nur Freunde",
-                        "private": "Privat",
-                      },
-                      onChanged: (v) => setSheet(() => profileValue = v),
-                    ),
-                    _OptionDropdown(
-                      title: "Wer darf meine Events sehen?",
-                      value: eventsValue,
-                      items: const {
-                        "public": "Alle",
-                        "followers": "Follower",
-                        "private": "Privat",
-                      },
-                      onChanged: (v) => setSheet(() => eventsValue = v),
-                    ),
-                    SwitchListTile(
-                      value: locationValue,
-                      activeColor: C.cyan,
-                      title: const Text("Nähe / Standort aktiv"),
-                      subtitle: const Text(
-                        "Events in deiner Nähe anzeigen",
-                        style: TextStyle(color: Colors.white54),
-                      ),
-                      onChanged: (v) => setSheet(() => locationValue = v),
-                    ),
-                    const SizedBox(height: 10),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: C.cyan,
-                        foregroundColor: Colors.black,
-                        minimumSize: const Size(double.infinity, 52),
-                      ),
-                      onPressed: () async {
-                        await updateUserSettings({
-                          "privacyContact": contactValue,
-                          "privacyProfile": profileValue,
-                          "privacyEvents": eventsValue,
-                          "nearbyEnabled": locationValue,
-                        });
+            return _PremiumSheet(
+              maxHeight: 0.88,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const _SheetHandle(),
+                  const SizedBox(height: 18),
+                  const _SheetTitle(
+                    icon: Icons.privacy_tip_rounded,
+                    title: "Datenschutz & Privatsphäre",
+                    subtitle: "Kontrolliere, wer dich sieht und kontaktieren darf.",
+                    color: Colors.blueAccent,
+                  ),
+                  const SizedBox(height: 16),
+                  _OptionDropdown(
+                    title: "Nachrichten von",
+                    value: contactValue,
+                    items: const {
+                      "all": "Alle",
+                      "friends": "Nur Freunde",
+                      "none": "Niemand",
+                    },
+                    onChanged: (v) => setSheet(() => contactValue = v),
+                  ),
+                  _OptionDropdown(
+                    title: "Profil sichtbar für",
+                    value: profileValue,
+                    items: const {
+                      "public": "Alle",
+                      "friends": "Nur Freunde",
+                      "private": "Privat",
+                    },
+                    onChanged: (v) => setSheet(() => profileValue = v),
+                  ),
+                  _OptionDropdown(
+                    title: "Events sichtbar für",
+                    value: eventsValue,
+                    items: const {
+                      "public": "Alle",
+                      "followers": "Follower",
+                      "private": "Privat",
+                    },
+                    onChanged: (v) => setSheet(() => eventsValue = v),
+                  ),
+                  _SwitchCard(
+                    icon: Icons.location_on_rounded,
+                    color: C.green,
+                    title: "Nähe & Standort",
+                    subtitle: "Events in deiner Nähe anzeigen.",
+                    value: locationValue,
+                    onChanged: (v) => setSheet(() => locationValue = v),
+                  ),
+                  const SizedBox(height: 10),
+                  _MainButton(
+                    text: "Datenschutz speichern",
+                    icon: Icons.lock_rounded,
+                    color: Colors.blueAccent,
+                    onTap: () async {
+                      await updateUserSettings({
+                        "privacyContact": contactValue,
+                        "privacyProfile": profileValue,
+                        "privacyEvents": eventsValue,
+                        "nearbyEnabled": locationValue,
+                      });
 
-                        if (!context.mounted) return;
-                        Navigator.pop(context);
-                      },
-                      child: const Text("Speichern"),
-                    ),
-                  ],
-                ),
+                      if (!context.mounted) return;
+                      Navigator.pop(context);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _SupportActionCard(
+                    icon: Icons.policy_rounded,
+                    color: C.cyan,
+                    title: "Datenschutzerklärung",
+                    subtitle: "Offizielle Datenschutz-Seite öffnen.",
+                    onTap: () => openWeb("https://outly.site/privacy.html"),
+                  ),
+                ],
               ),
             );
           },
@@ -396,7 +682,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void openNotificationSheet(Map<String, dynamic> data) {
+  void openNotificationCenter(Map<String, dynamic> data) {
     bool push = data["notifyPush"] != false;
     bool events = data["notifyEvents"] != false;
     bool chats = data["notifyChats"] != false;
@@ -405,80 +691,84 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: C.bg,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (_) {
         return StatefulBuilder(
           builder: (context, setSheet) {
-            return SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(18),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const _SheetHandle(),
-                    const SizedBox(height: 16),
-                    const Text(
-                      "Benachrichtigungen",
-                      style: TextStyle(
-                        color: C.cyan,
-                        fontSize: 25,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    SwitchListTile(
-                      value: push,
-                      activeColor: C.cyan,
-                      title: const Text("Push Benachrichtigungen"),
-                      onChanged: (v) => setSheet(() => push = v),
-                    ),
-                    SwitchListTile(
-                      value: events,
-                      activeColor: C.orange,
-                      title: const Text("Event Updates"),
-                      onChanged: (v) => setSheet(() => events = v),
-                    ),
-                    SwitchListTile(
-                      value: chats,
-                      activeColor: C.pink,
-                      title: const Text("Chat Nachrichten"),
-                      onChanged: (v) => setSheet(() => chats = v),
-                    ),
-                    SwitchListTile(
-                      value: social,
-                      activeColor: C.purple,
-                      title: const Text("Follower / Likes"),
-                      onChanged: (v) => setSheet(() => social = v),
-                    ),
-                    SwitchListTile(
-                      value: support,
-                      activeColor: C.green,
-                      title: const Text("Support Antworten"),
-                      onChanged: (v) => setSheet(() => support = v),
-                    ),
-                    const SizedBox(height: 10),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: C.cyan,
-                        foregroundColor: Colors.black,
-                        minimumSize: const Size(double.infinity, 52),
-                      ),
-                      onPressed: () async {
-                        await updateUserSettings({
-                          "notifyPush": push,
-                          "notifyEvents": events,
-                          "notifyChats": chats,
-                          "notifySocial": social,
-                          "notifySupport": support,
-                        });
+            return _PremiumSheet(
+              maxHeight: 0.86,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const _SheetHandle(),
+                  const SizedBox(height: 18),
+                  const _SheetTitle(
+                    icon: Icons.notifications_active_rounded,
+                    title: "Benachrichtigungen",
+                    subtitle: "Wähle aus, was Outly dir senden darf.",
+                    color: C.cyan,
+                  ),
+                  const SizedBox(height: 16),
+                  _SwitchCard(
+                    icon: Icons.notifications_active_rounded,
+                    color: C.cyan,
+                    title: "Push Benachrichtigungen",
+                    subtitle: "Hauptschalter für Push Nachrichten.",
+                    value: push,
+                    onChanged: (v) => setSheet(() => push = v),
+                  ),
+                  _SwitchCard(
+                    icon: Icons.local_fire_department_rounded,
+                    color: C.orange,
+                    title: "Event Updates",
+                    subtitle: "Join-Anfragen, Änderungen und Erinnerungen.",
+                    value: events,
+                    onChanged: (v) => setSheet(() => events = v),
+                  ),
+                  _SwitchCard(
+                    icon: Icons.chat_bubble_rounded,
+                    color: C.pink,
+                    title: "Chat Nachrichten",
+                    subtitle: "Private Chats und Event Chat Hinweise.",
+                    value: chats,
+                    onChanged: (v) => setSheet(() => chats = v),
+                  ),
+                  _SwitchCard(
+                    icon: Icons.favorite_rounded,
+                    color: C.purple,
+                    title: "Social",
+                    subtitle: "Follower, Likes und Profil-Aktivität.",
+                    value: social,
+                    onChanged: (v) => setSheet(() => social = v),
+                  ),
+                  _SwitchCard(
+                    icon: Icons.support_agent_rounded,
+                    color: C.green,
+                    title: "Support Antworten",
+                    subtitle: "Antworten vom Outly Team.",
+                    value: support,
+                    onChanged: (v) => setSheet(() => support = v),
+                  ),
+                  const SizedBox(height: 10),
+                  _MainButton(
+                    text: "Einstellungen speichern",
+                    icon: Icons.save_rounded,
+                    color: C.cyan,
+                    onTap: () async {
+                      await updateUserSettings({
+                        "notifyPush": push,
+                        "notifyEvents": events,
+                        "notifyChats": chats,
+                        "notifySocial": social,
+                        "notifySupport": support,
+                      });
 
-                        if (!context.mounted) return;
-                        Navigator.pop(context);
-                      },
-                      child: const Text("Speichern"),
-                    ),
-                  ],
-                ),
+                      if (!context.mounted) return;
+                      Navigator.pop(context);
+                    },
+                  ),
+                ],
               ),
             );
           },
@@ -492,30 +782,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: C.bg,
+      backgroundColor: Colors.transparent,
       builder: (_) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const _SheetHandle(),
-                const SizedBox(height: 16),
-                const Text(
-                  "Blockierte Nutzer",
-                  style: TextStyle(
-                    color: C.cyan,
-                    fontSize: 25,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                if (blocked.isEmpty)
-                  const _EmptySmall(text: "Du hast aktuell niemanden blockiert.")
-                else
-                  ...blocked.map((uid) {
-                    return ListTile(
+        return _PremiumSheet(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const _SheetHandle(),
+              const SizedBox(height: 18),
+              const _SheetTitle(
+                icon: Icons.block_rounded,
+                title: "Blockierte Nutzer",
+                subtitle: "Verwalte blockierte Personen.",
+                color: Colors.redAccent,
+              ),
+              const SizedBox(height: 14),
+              if (blocked.isEmpty)
+                const _EmptySmall(text: "Du hast aktuell niemanden blockiert.")
+              else
+                ...blocked.map((uid) {
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    decoration: BoxDecoration(
+                      color: C.card,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: ListTile(
                       title: Text(uid),
                       trailing: TextButton(
                         onPressed: () async {
@@ -528,10 +820,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         },
                         child: const Text("Entblocken"),
                       ),
-                    );
-                  }),
-              ],
-            ),
+                    ),
+                  );
+                }),
+            ],
           ),
         );
       },
@@ -544,130 +836,125 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: C.bg,
+      backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) {
-        return SafeArea(
-          child: SizedBox(
-            height: MediaQuery.of(context).size.height * 0.75,
-            child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: Column(
-                children: [
-                  const _SheetHandle(),
-                  const SizedBox(height: 16),
-                  const Text(
-                    "Meine Support Tickets",
-                    style: TextStyle(
-                      color: C.cyan,
-                      fontSize: 25,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Expanded(
-                    child: StreamBuilder<QuerySnapshot>(
-                      stream: FirebaseFirestore.instance
-                          .collection("support")
-                          .where("uid", isEqualTo: user.uid)
-                          .snapshots(),
-                      builder: (context, snap) {
-                        if (!snap.hasData) {
-                          return const Center(
-                            child: CircularProgressIndicator(color: C.cyan),
-                          );
-                        }
+        return _PremiumSheet(
+          maxHeight: 0.82,
+          scrollable: false,
+          child: Column(
+            children: [
+              const _SheetHandle(),
+              const SizedBox(height: 18),
+              const _SheetTitle(
+                icon: Icons.confirmation_number_rounded,
+                title: "Meine Tickets",
+                subtitle: "Status, Antworten und Verlauf.",
+                color: C.cyan,
+              ),
+              const SizedBox(height: 14),
+              Expanded(
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection("support")
+                      .where("uid", isEqualTo: user.uid)
+                      .snapshots(),
+                  builder: (context, snap) {
+                    if (!snap.hasData) {
+                      return const Center(child: CircularProgressIndicator(color: C.cyan));
+                    }
 
-                        final docs = snap.data!.docs.toList();
+                    final docs = snap.data!.docs.toList();
 
-                        docs.sort((a, b) {
-                          final da = a.data() as Map<String, dynamic>;
-                          final db = b.data() as Map<String, dynamic>;
-                          final ta = da["createdAt"];
-                          final tb = db["createdAt"];
+                    docs.sort((a, b) {
+                      final da = a.data() as Map<String, dynamic>;
+                      final db = b.data() as Map<String, dynamic>;
+                      final ta = da["createdAt"];
+                      final tb = db["createdAt"];
 
-                          if (ta is Timestamp && tb is Timestamp) {
-                            return tb.compareTo(ta);
-                          }
+                      if (ta is Timestamp && tb is Timestamp) {
+                        return tb.compareTo(ta);
+                      }
 
-                          return 0;
-                        });
+                      return 0;
+                    });
 
-                        if (docs.isEmpty) {
-                          return const _EmptySmall(
-                            text: "Noch keine Tickets vorhanden.",
-                          );
-                        }
+                    if (docs.isEmpty) {
+                      return const _EmptySmall(text: "Noch keine Tickets vorhanden.");
+                    }
 
-                        return ListView(
-                          children: docs.map((doc) {
-                            final data = doc.data() as Map<String, dynamic>;
-                            final subject = data["subject"] ?? "Ticket";
-                            final status = data["status"] ?? "open";
-                            final message = data["message"] ?? "";
-                            final reply = data["adminReply"] ?? "";
+                    return ListView(
+                      physics: const BouncingScrollPhysics(),
+                      children: docs.map((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        final subject = data["subject"] ?? "Ticket";
+                        final status = data["status"] ?? "open";
+                        final type = data["type"] ?? "support";
+                        final message = data["message"] ?? "";
+                        final reply = data["adminReply"] ?? "";
+                        final config = _SupportTypeConfig.fromType(type.toString());
 
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: C.card,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: status == "answered"
-                                      ? C.green.withOpacity(0.35)
-                                      : C.cyan.withOpacity(0.18),
-                                ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(15),
+                          decoration: BoxDecoration(
+                            color: C.card,
+                            borderRadius: BorderRadius.circular(22),
+                            border: Border.all(
+                              color: status == "answered"
+                                  ? C.green.withOpacity(0.35)
+                                  : config.color.withOpacity(0.25),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
                                 children: [
-                                  Text(
-                                    subject.toString(),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w900,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    "Status: $status",
-                                    style: const TextStyle(color: C.cyan),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    message.toString(),
-                                    style: const TextStyle(color: Colors.white70),
-                                  ),
-                                  if (reply.toString().isNotEmpty) ...[
-                                    const SizedBox(height: 10),
-                                    Container(
-                                      width: double.infinity,
-                                      padding: const EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        color: C.green.withOpacity(0.10),
-                                        borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(
-                                          color: C.green.withOpacity(0.25),
-                                        ),
-                                      ),
-                                      child: Text(
-                                        "Antwort: $reply",
-                                        style: const TextStyle(color: Colors.white70),
+                                  Icon(config.icon, color: config.color),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      subject.toString(),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 16,
                                       ),
                                     ),
-                                  ],
+                                  ),
+                                  _MiniStatus(text: status.toString()),
                                 ],
                               ),
-                            );
-                          }).toList(),
+                              const SizedBox(height: 10),
+                              Text(
+                                message.toString(),
+                                style: const TextStyle(color: Colors.white70, height: 1.4),
+                              ),
+                              if (reply.toString().isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: C.green.withOpacity(0.10),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: C.green.withOpacity(0.25)),
+                                  ),
+                                  child: Text(
+                                    "Outly Antwort:\n$reply",
+                                    style: const TextStyle(color: Colors.white70, height: 1.35),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
                         );
-                      },
-                    ),
-                  ),
-                ],
+                      }).toList(),
+                    );
+                  },
+                ),
               ),
-            ),
+            ],
           ),
         );
       },
@@ -703,10 +990,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
       body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection("users")
-            .doc(user?.uid)
-            .snapshots(),
+        stream: FirebaseFirestore.instance.collection("users").doc(user?.uid).snapshots(),
         builder: (context, snap) {
           final data = snap.data?.data() as Map<String, dynamic>? ?? {};
 
@@ -734,46 +1018,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 vip: vip,
                 team: team,
               ),
-
               const SizedBox(height: 16),
-
               _QuickGrid(
                 items: [
                   _QuickAction(
                     icon: Icons.person_rounded,
                     label: "Profil",
                     color: C.cyan,
-                    onTap: () => Navigator.pop(context),
+                    onTap: () => openEditProfileSheet(data),
                   ),
                   _QuickAction(
                     icon: Icons.support_agent_rounded,
-                    label: "Support",
+                    label: "Hilfe",
                     color: C.green,
-                    onTap: () => createSupportTicket(
-                      context: context,
-                      type: "support",
-                    ),
+                    onTap: openSupportCenter,
                   ),
                   _QuickAction(
                     icon: Icons.privacy_tip_rounded,
                     label: "Privacy",
                     color: Colors.blueAccent,
-                    onTap: () => openPrivacySheet(data),
+                    onTap: () => openPrivacyCenter(data),
                   ),
-                  if (isAdmin)
-                    _QuickAction(
-                      icon: Icons.admin_panel_settings_rounded,
-                      label: "Admin",
-                      color: Colors.amber,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const AdminScreen(),
-                          ),
-                        );
-                      },
-                    ),
+                  _QuickAction(
+                    icon: Icons.notifications_active_rounded,
+                    label: "Push",
+                    color: C.orange,
+                    onTap: () => openNotificationCenter(data),
+                  ),
                 ],
               ),
 
@@ -798,53 +1069,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 icon: Icons.person_rounded,
                 color: C.cyan,
                 title: "Profil bearbeiten",
-                subtitle: "Name, Bio, Profilbild und Vibes im Profil ändern",
-                onTap: () => Navigator.pop(context),
+                subtitle: "Name, Stadt und Bio aktualisieren",
+                onTap: () => openEditProfileSheet(data),
+              ),
+              SettingsTile(
+                icon: Icons.auto_awesome_rounded,
+                color: C.purple,
+                title: "Vibes & Interessen",
+                subtitle: "Wähle deine Aktivitäten und Interessen",
+                onTap: () => openVibeSheet(data),
               ),
               SettingsTile(
                 icon: Icons.email_rounded,
-                color: C.purple,
-                title: "E-Mail",
-                subtitle: user?.email ?? "Keine E-Mail",
-                onTap: () {},
+                color: C.purple2,
+                title: "E-Mail ändern",
+                subtitle: user?.email ?? "Keine E-Mail verbunden",
+                onTap: openEmailSheet,
               ),
               SettingsTile(
                 icon: Icons.key_rounded,
                 color: C.orange,
                 title: "Passwort zurücksetzen",
-                subtitle: "Reset Link per Mail erhalten",
+                subtitle: "Reset-Link per E-Mail erhalten",
                 onTap: () => resetPassword(context),
               ),
 
-              section("Safety & Privacy"),
+              section("Datenschutz & Sicherheit"),
+              SettingsTile(
+                icon: Icons.privacy_tip_rounded,
+                color: Colors.blueAccent,
+                title: "Datenschutz Center",
+                subtitle: "Profil, Nachrichten, Events und Standort",
+                onTap: () => openPrivacyCenter(data),
+              ),
               SettingsTile(
                 icon: Icons.block_rounded,
                 color: Colors.redAccent,
                 title: "Blockierte Nutzer",
-                subtitle: "Nutzer entblocken und verwalten",
+                subtitle: "Blockierte Personen verwalten",
                 onTap: () => openBlockedUsersSheet(data),
-              ),
-              SettingsTile(
-                icon: Icons.lock_rounded,
-                color: Colors.blueAccent,
-                title: "Privatsphäre",
-                subtitle: "Profil, Kontakt und Event Sichtbarkeit",
-                onTap: () => openPrivacySheet(data),
-              ),
-              SettingsTile(
-                icon: Icons.location_on_rounded,
-                color: C.green,
-                title: "Standort & Nähe",
-                subtitle: data["nearbyEnabled"] == false
-                    ? "Nähe ist deaktiviert"
-                    : "Events in deiner Nähe aktiv",
-                onTap: () => openPrivacySheet(data),
               ),
               SettingsTile(
                 icon: Icons.shield_rounded,
                 color: C.cyan,
                 title: "Safety Center",
-                subtitle: "Sicherheit, Community Regeln und Verhalten",
+                subtitle: "Sicherheit, Reports und Community Schutz",
                 onTap: () {
                   Navigator.push(
                     context,
@@ -862,88 +1131,55 @@ class _SettingsScreenState extends State<SettingsScreen> {
               SettingsTile(
                 icon: Icons.notifications_active_rounded,
                 color: C.cyan,
-                title: "Notification Einstellungen",
-                subtitle: "Push, Events, Chats, Likes und Support",
-                onTap: () => openNotificationSheet(data),
+                title: "Benachrichtigungen verwalten",
+                subtitle: "Push, Events, Chats, Social und Support",
+                onTap: () => openNotificationCenter(data),
               ),
 
               section("Support & Hilfe"),
               SettingsTile(
-                icon: Icons.support_agent_rounded,
+                icon: Icons.help_center_rounded,
                 color: C.green,
-                title: "Support Ticket erstellen",
-                subtitle: "Problem direkt an Outly senden",
-                onTap: () => createSupportTicket(
-                  context: context,
-                  type: "support",
-                ),
+                title: "Hilfe Center",
+                subtitle: "Support, Tickets, Bugs, Feedback und Safety",
+                onTap: openSupportCenter,
               ),
               SettingsTile(
                 icon: Icons.confirmation_number_rounded,
                 color: C.cyan,
                 title: "Meine Support Tickets",
-                subtitle: "Antworten und Status ansehen",
+                subtitle: "Status und Antworten vom Outly Team ansehen",
                 onTap: openSupportTickets,
-              ),
-              SettingsTile(
-                icon: Icons.bug_report_rounded,
-                color: C.orange,
-                title: "Bug melden",
-                subtitle: "Fehler oder App-Probleme melden",
-                onTap: () => createSupportTicket(
-                  context: context,
-                  type: "bug",
-                ),
-              ),
-              SettingsTile(
-                icon: Icons.feedback_rounded,
-                color: C.purple,
-                title: "Feedback senden",
-                subtitle: "Ideen, Wünsche und Verbesserungen",
-                onTap: () => createSupportTicket(
-                  context: context,
-                  type: "feedback",
-                ),
-              ),
-              SettingsTile(
-                icon: Icons.public_rounded,
-                color: C.purple2,
-                title: "Support Webseite",
-                subtitle: "outly.site/support.html",
-                onTap: () => openWeb("https://outly.site/support.html"),
               ),
 
               section("Rechtliches"),
               SettingsTile(
+                icon: Icons.public_rounded,
+                color: C.cyan,
+                title: "Outly Website",
+                subtitle: "Offizielle Plattformseite öffnen",
+                onTap: () => openWeb("https://outly.site"),
+              ),
+              SettingsTile(
                 icon: Icons.privacy_tip_outlined,
                 color: Colors.blueAccent,
-                title: "Datenschutz",
-                subtitle: "outly.site/privacy.html",
+                title: "Datenschutzerklärung",
+                subtitle: "Informationen zu Datenschutz und Datenverarbeitung",
                 onTap: () => openWeb("https://outly.site/privacy.html"),
               ),
               SettingsTile(
                 icon: Icons.description_outlined,
                 color: Colors.purpleAccent,
                 title: "Nutzungsbedingungen",
-                subtitle: "AGB / Terms",
+                subtitle: "Regeln und Bedingungen für die Nutzung von Outly",
                 onTap: () => openWeb("https://outly.site/agb.html"),
               ),
               SettingsTile(
                 icon: Icons.gavel_rounded,
                 color: Colors.redAccent,
                 title: "Impressum",
-                subtitle: "Unternehmensinformationen",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const LegalTextPage(
-                        title: "Impressum",
-                        text: imprintText,
-                      ),
-                    ),
-                  );
-                },
+                subtitle: "Rechtliche Angaben und Kontakt",
+                onTap: () => openWeb("https://outly.site/impressum.html"),
               ),
               SettingsTile(
                 icon: Icons.groups_rounded,
@@ -966,7 +1202,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 icon: Icons.info_outline_rounded,
                 color: Colors.white70,
                 title: "Über Outly",
-                subtitle: "Version 1.0.0 • Outly",
+                subtitle: "Version 1.0.0 • Real-Life Social Discovery Platform",
                 onTap: () {
                   Navigator.push(
                     context,
@@ -990,15 +1226,71 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
 
               const SizedBox(height: 10),
-
-              _DangerZone(
-                onDelete: () => deleteAccount(context),
-              ),
+              _DangerZone(onDelete: () => deleteAccount(context)),
             ],
           );
         },
       ),
     );
+  }
+}
+
+class _SupportTypeConfig {
+  final String title;
+  final String subtitle;
+  final String subjectHint;
+  final String messageHint;
+  final IconData icon;
+  final Color color;
+
+  const _SupportTypeConfig({
+    required this.title,
+    required this.subtitle,
+    required this.subjectHint,
+    required this.messageHint,
+    required this.icon,
+    required this.color,
+  });
+
+  factory _SupportTypeConfig.fromType(String type) {
+    switch (type) {
+      case "bug":
+        return const _SupportTypeConfig(
+          title: "Bug melden",
+          subtitle: "Melde Fehler, Abstürze oder Probleme in der App.",
+          subjectHint: "Was funktioniert nicht?",
+          messageHint: "Beschreib den Bug genau. Was hast du gemacht? Was ist passiert?",
+          icon: Icons.bug_report_rounded,
+          color: C.orange,
+        );
+      case "feedback":
+        return const _SupportTypeConfig(
+          title: "Feedback senden",
+          subtitle: "Schick uns Ideen, Wünsche oder Verbesserungen.",
+          subjectHint: "Deine Idee",
+          messageHint: "Was sollen wir verbessern oder neu bauen?",
+          icon: Icons.feedback_rounded,
+          color: C.purple,
+        );
+      case "safety":
+        return const _SupportTypeConfig(
+          title: "Safety Problem melden",
+          subtitle: "Melde Fake-User, Belästigung oder gefährliche Inhalte.",
+          subjectHint: "Was ist passiert?",
+          messageHint: "Beschreib die Situation. Wenn möglich: User, Event oder Chat erwähnen.",
+          icon: Icons.shield_rounded,
+          color: Colors.redAccent,
+        );
+      default:
+        return const _SupportTypeConfig(
+          title: "Support kontaktieren",
+          subtitle: "Wir helfen dir bei Account, Events, Chats und Technik.",
+          subjectHint: "Worum geht es?",
+          messageHint: "Beschreib dein Problem möglichst genau.",
+          icon: Icons.support_agent_rounded,
+          color: C.green,
+        );
+    }
   }
 }
 
@@ -1093,11 +1385,8 @@ class _SettingsHero extends StatelessWidget {
               ),
               const SizedBox(height: 7),
               const Text(
-                "Settings Hub",
-                style: TextStyle(
-                  fontSize: 25,
-                  fontWeight: FontWeight.w900,
-                ),
+                "Control Center",
+                style: TextStyle(fontSize: 25, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 14),
               Text(
@@ -1214,10 +1503,7 @@ class _QuickGrid extends StatelessWidget {
                   item.label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
-                  ),
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
                 ),
               ],
             ),
@@ -1267,10 +1553,7 @@ class SettingsTile extends StatelessWidget {
         ),
         title: Text(
           title,
-          style: const TextStyle(
-            fontWeight: FontWeight.w900,
-            fontSize: 15.5,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15.5),
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 3),
@@ -1279,11 +1562,255 @@ class SettingsTile extends StatelessWidget {
             style: const TextStyle(color: Colors.white54, fontSize: 12.5),
           ),
         ),
-        trailing: const Icon(
-          Icons.chevron_right_rounded,
-          color: Colors.white38,
-        ),
+        trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white38),
         onTap: onTap,
+      ),
+    );
+  }
+}
+
+class _PremiumSheet extends StatelessWidget {
+  final Widget child;
+  final double maxHeight;
+  final bool scrollable;
+
+  const _PremiumSheet({
+    required this.child,
+    this.maxHeight = 0.78,
+    this.scrollable = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final box = Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * maxHeight,
+      ),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: C.bg,
+        borderRadius: BorderRadius.circular(34),
+        border: Border.all(color: C.cyan.withOpacity(0.20)),
+        boxShadow: [
+          BoxShadow(
+            color: C.cyan.withOpacity(0.14),
+            blurRadius: 34,
+            offset: const Offset(0, 14),
+          ),
+        ],
+      ),
+      child: scrollable
+          ? SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: child,
+            )
+          : child,
+    );
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        14,
+        14,
+        14,
+        MediaQuery.of(context).viewInsets.bottom + 14,
+      ),
+      child: SafeArea(child: box),
+    );
+  }
+}
+
+class _SheetTitle extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+
+  const _SheetTitle({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.14),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: color.withOpacity(0.25)),
+          ),
+          child: Icon(icon, color: color),
+        ),
+        const SizedBox(width: 13),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: TextStyle(color: color, fontSize: 23, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 3),
+              Text(subtitle, style: const TextStyle(color: Colors.white54, height: 1.3)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SupportActionCard extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _SupportActionCard({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 11),
+      decoration: BoxDecoration(
+        color: C.card,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: color.withOpacity(0.16)),
+      ),
+      child: ListTile(
+        onTap: onTap,
+        leading: Icon(icon, color: color),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+        subtitle: Text(subtitle, style: const TextStyle(color: Colors.white54)),
+        trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white38),
+      ),
+    );
+  }
+}
+
+class _SwitchCard extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String subtitle;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _SwitchCard({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 11),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: C.card,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: color.withOpacity(0.16)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+                const SizedBox(height: 3),
+                Text(subtitle, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+              ],
+            ),
+          ),
+          Switch(value: value, activeColor: color, onChanged: onChanged),
+        ],
+      ),
+    );
+  }
+}
+
+class _MainButton extends StatelessWidget {
+  final String text;
+  final IconData icon;
+  final Color color;
+  final VoidCallback? onTap;
+  final bool loading;
+
+  const _MainButton({
+    required this.text,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+    this.loading = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton.icon(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: Colors.black,
+        minimumSize: const Size(double.infinity, 54),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      ),
+      onPressed: onTap,
+      icon: loading
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+            )
+          : Icon(icon),
+      label: Text(text, style: const TextStyle(fontWeight: FontWeight.w900)),
+    );
+  }
+}
+
+class _InfoBox extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String text;
+
+  const _InfoBox({
+    required this.icon,
+    required this.color,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color.withOpacity(0.22)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 19),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(text, style: const TextStyle(color: Colors.white70, height: 1.35)),
+          ),
+        ],
       ),
     );
   }
@@ -1316,11 +1843,7 @@ class _HeroChip extends StatelessWidget {
           const SizedBox(width: 5),
           Text(
             text,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.w900,
-              fontSize: 12,
-            ),
+            style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: 12),
           ),
         ],
       ),
@@ -1347,11 +1870,7 @@ class _DangerZone extends StatelessWidget {
         children: [
           const Text(
             "Account löschen",
-            style: TextStyle(
-              color: Colors.redAccent,
-              fontSize: 19,
-              fontWeight: FontWeight.w900,
-            ),
+            style: TextStyle(color: Colors.redAccent, fontSize: 19, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 7),
           const Text(
@@ -1364,16 +1883,11 @@ class _DangerZone extends StatelessWidget {
               backgroundColor: Colors.red.withOpacity(0.16),
               foregroundColor: Colors.redAccent,
               minimumSize: const Size(double.infinity, 52),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
             ),
             onPressed: onDelete,
             icon: const Icon(Icons.delete_forever_rounded),
-            label: const Text(
-              "Account löschen",
-              style: TextStyle(fontWeight: FontWeight.w900),
-            ),
+            label: const Text("Account löschen", style: TextStyle(fontWeight: FontWeight.w900)),
           ),
         ],
       ),
@@ -1399,8 +1913,10 @@ class _SettingsInput extends StatelessWidget {
     return TextField(
       controller: controller,
       maxLines: maxLines,
+      style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         hintText: hint,
+        hintStyle: const TextStyle(color: Colors.white38),
         prefixIcon: Icon(icon, color: C.cyan),
         filled: true,
         fillColor: C.card,
@@ -1429,20 +1945,17 @@ class _OptionDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 11),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
         color: C.card,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: C.cyan.withOpacity(0.15)),
       ),
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(fontWeight: FontWeight.w800),
-            ),
+            child: Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
           ),
           DropdownButton<String>(
             value: value,
@@ -1464,17 +1977,47 @@ class _OptionDropdown extends StatelessWidget {
   }
 }
 
+class _MiniStatus extends StatelessWidget {
+  final String text;
+
+  const _MiniStatus({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = text == "answered"
+        ? C.green
+        : text == "closed"
+            ? Colors.white54
+            : C.orange;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withOpacity(0.25)),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w900),
+      ),
+    );
+  }
+}
+
 class _SheetHandle extends StatelessWidget {
   const _SheetHandle();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 46,
-      height: 5,
-      decoration: BoxDecoration(
-        color: Colors.white24,
-        borderRadius: BorderRadius.circular(999),
+    return Center(
+      child: Container(
+        width: 46,
+        height: 5,
+        decoration: BoxDecoration(
+          color: Colors.white24,
+          borderRadius: BorderRadius.circular(999),
+        ),
       ),
     );
   }

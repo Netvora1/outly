@@ -1,39 +1,45 @@
 <!DOCTYPE html>
-<html>
+<html lang="de">
 <head>
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
-  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="Outly - Real-Life Aktivitäten mit Freunden">
-
-  <!-- iOS -->
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="Outly">
-
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
-
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
-
-  <!-- CROPPER CSS -->
-  <link
-    rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.css"
-  />
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge">
 
   <title>Outly</title>
+  <meta name="description" content="Outly - Weniger scrollen, mehr erleben. Finde echte Aktivitäten, Events und Leute in deiner Nähe.">
 
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+  <meta name="theme-color" content="#07080F">
+  <meta name="color-scheme" content="dark">
+
+  <!-- iOS / PWA -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Outly">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <!-- Icons -->
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="manifest" href="manifest.json">
+
+  <!-- Cropper -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
 </head>
 
-<body>
-
-  <!-- CROPPER JS -->
+<body style="background:#07080F; margin:0; overflow:hidden;">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 
   <script src="flutter_bootstrap.js" async></script>
 
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/firebase-messaging-sw.js').catch(function(error) {
+        console.log('Service Worker Fehler:', error);
+      });
+    }
+  </script>
 </body>
 </html>

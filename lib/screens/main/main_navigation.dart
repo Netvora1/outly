@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../core/app_colors.dart';
 import '../home/home_screen.dart';
@@ -6,8 +7,6 @@ import '../create/create_activity_screen.dart';
 import '../map/explore_map_screen.dart';
 import '../social/chats_friends_story_screen.dart';
 import '../profile/user_profile_screen.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -19,23 +18,38 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int index = 0;
 
-  final screens = [
-    HomeScreen(),
-    ExploreMapScreen(),
-    CreateActivityScreen(),
-    ChatsFriendsStoryScreen(),
-    ProfileScreen(userId: FirebaseAuth.instance.currentUser!.uid),
-  ];
+  List<Widget> get screens {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+
+    return [
+      const HomeScreen(),
+      const ExploreMapScreen(),
+      const CreateActivityScreen(),
+      const ChatsFriendsStoryScreen(),
+      if (uid == null)
+        const Center(
+          child: CircularProgressIndicator(color: C.cyan),
+        )
+      else
+        ProfileScreen(userId: uid),
+    ];
+  }
 
   void changeTab(int i) {
+    if (i == index) return;
     setState(() => index = i);
   }
 
   @override
   Widget build(BuildContext context) {
+    final pages = screens;
+
     return Scaffold(
       backgroundColor: C.bg,
-      body: screens[index],
+      body: IndexedStack(
+        index: index,
+        children: pages,
+      ),
       bottomNavigationBar: SafeArea(
         top: false,
         child: Container(
@@ -69,7 +83,6 @@ class _MainNavigationState extends State<MainNavigation> {
                 color: C.green,
                 onTap: () => changeTab(1),
               ),
-
               Expanded(
                 child: GestureDetector(
                   onTap: () => changeTab(2),
@@ -99,7 +112,6 @@ class _MainNavigationState extends State<MainNavigation> {
                   ),
                 ),
               ),
-
               _OutlyNavItem(
                 icon: Icons.chat_bubble_rounded,
                 label: "Chats",

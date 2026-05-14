@@ -793,6 +793,14 @@ class ChatsList extends StatelessWidget {
 
   const ChatsList({super.key, required this.uid});
 
+  String _timeText(dynamic value) {
+    if (value is! Timestamp) return "";
+    final d = value.toDate();
+    final h = d.hour.toString().padLeft(2, "0");
+    final m = d.minute.toString().padLeft(2, "0");
+    return "$h:$m";
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
@@ -813,14 +821,12 @@ class ChatsList extends StatelessWidget {
         privateChats.sort((a, b) {
           final ad = a.data() as Map<String, dynamic>;
           final bd = b.data() as Map<String, dynamic>;
-
-          final at = ad["lastMessageTime"];
-          final bt = bd["lastMessageTime"];
+          final at = ad["lastMessageTime"] ?? ad["updatedAt"];
+          final bt = bd["lastMessageTime"] ?? bd["updatedAt"];
 
           if (at is Timestamp && bt is Timestamp) {
             return bt.compareTo(at);
           }
-
           return 0;
         });
 
@@ -846,10 +852,12 @@ class ChatsList extends StatelessWidget {
 
             if (otherUserId.isEmpty) return const SizedBox.shrink();
 
-            final lastMessage = (data["lastMessage"] ?? "Privater Chat").toString();
+            final lastMessage =
+                (data["lastMessage"] ?? "Privater Chat").toString();
             final lastSenderId = (data["lastSenderId"] ?? "").toString();
             final seenBy = List<String>.from(data["seenBy"] ?? []);
             final unread = lastSenderId != uid && !seenBy.contains(uid);
+            final time = _timeText(data["lastMessageTime"] ?? data["updatedAt"]);
 
             return FutureBuilder<DocumentSnapshot>(
               future: FirebaseFirestore.instance
@@ -862,78 +870,233 @@ class ChatsList extends StatelessWidget {
                 final userData =
                     userSnap.data!.data() as Map<String, dynamic>? ?? {};
 
-                if (userData["isBanned"] == true) return const SizedBox.shrink();
+                if (userData["isBanned"] == true) {
+                  return const SizedBox.shrink();
+                }
 
                 final username = (userData["username"] ?? "user").toString();
-                final photoUrl = (userData["photoUrl"] ?? "").toString();
+                final photoUrl = (userData["photoUrl"] ?? "").toString().trim();
                 final verified = userData["verified"] == true;
+                final creator = userData["creator"] == true;
+                final vip = userData["vip"] == true;
 
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: unread ? C.cyan.withOpacity(0.10) : C.card,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: unread
-                          ? C.cyan.withOpacity(0.55)
-                          : Colors.white10,
-                    ),
-                    boxShadow: [
-                      if (unread)
-                        BoxShadow(
-                          color: C.cyan.withOpacity(0.18),
-                          blurRadius: 22,
+                return GestureDetector(
+                  onTap: () async {
+                    await FirebaseFirestore.instance
+                        .collection("privateChats")
+                        .doc(doc.id)
+                        .set({
+                      "seenBy": FieldValue.arrayUnion([uid]),
+                    }, SetOptions(merge: true));
+
+                    if (!context.mounted) return;
+
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => chat.PrivateChatScreen(
+                          otherUserId: otherUserId,
+                          otherUsername: username,
                         ),
-                    ],
-                  ),
-                  child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: OutlyAvatar(
-                      photoUrl: photoUrl,
-                      radius: 27,
-                    ),
-                    title: verifiedName(username, verified, size: 17),
-                    subtitle: Text(
-                      lastMessage,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: unread ? Colors.white : Colors.white54,
-                        fontWeight: unread ? FontWeight.w900 : FontWeight.w500,
                       ),
+                    );
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    margin: const EdgeInsets.only(bottom: 13),
+                    padding: const EdgeInsets.all(13),
+                    decoration: BoxDecoration(
+                      gradient: unread
+                          ? LinearGradient(
+                              colors: [
+                                C.cyan.withOpacity(0.16),
+                                C.purple.withOpacity(0.10),
+                                C.card,
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            )
+                          : null,
+                      color: unread ? null : C.card,
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(
+                        color: unread
+                            ? C.cyan.withOpacity(0.55)
+                            : Colors.white.withOpacity(0.08),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: unread
+                              ? C.cyan.withOpacity(0.18)
+                              : Colors.black.withOpacity(0.16),
+                          blurRadius: unread ? 24 : 14,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
                     ),
-                    trailing: unread
-                        ? Container(
-                            height: 12,
-                            width: 12,
-                            decoration: const BoxDecoration(
-                              color: C.cyan,
-                              shape: BoxShape.circle,
+                    child: Row(
+                      children: [
+                        Stack(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(2.5),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: const LinearGradient(
+                                  colors: [C.cyan, C.purple, C.pink],
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: C.cyan.withOpacity(0.18),
+                                    blurRadius: 16,
+                                  ),
+                                ],
+                              ),
+                              child: CircleAvatar(
+                                radius: 30,
+                                backgroundColor: C.card2,
+                                backgroundImage: photoUrl.isNotEmpty
+                                    ? NetworkImage(photoUrl)
+                                    : null,
+                                child: photoUrl.isEmpty
+                                    ? Text(
+                                        username.isNotEmpty
+                                            ? username[0].toUpperCase()
+                                            : "?",
+                                        style: const TextStyle(
+                                          color: C.cyan,
+                                          fontWeight: FontWeight.w900,
+                                          fontSize: 23,
+                                        ),
+                                      )
+                                    : null,
+                              ),
                             ),
-                          )
-                        : const Icon(
-                            Icons.chevron_right_rounded,
-                            color: Colors.white38,
-                          ),
-                    onTap: () {
-                      FirebaseFirestore.instance
-                          .collection("privateChats")
-                          .doc(doc.id)
-                          .set({
-                        "seenBy": FieldValue.arrayUnion([uid]),
-                      }, SetOptions(merge: true));
+                            Positioned(
+                              right: 2,
+                              bottom: 2,
+                              child: Container(
+                                width: 14,
+                                height: 14,
+                                decoration: BoxDecoration(
+                                  color: C.green,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: C.bg, width: 2),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: C.green.withOpacity(0.45),
+                                      blurRadius: 10,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
 
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => chat.PrivateChatScreen(
-                            otherUserId: otherUserId,
-                            otherUsername: username,
+                        const SizedBox(width: 14),
+
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: verifiedName(
+                                      username,
+                                      verified,
+                                      size: 17,
+                                    ),
+                                  ),
+                                  if (creator) ...[
+                                    const SizedBox(width: 5),
+                                    const Icon(
+                                      Icons.workspace_premium_rounded,
+                                      color: C.orange,
+                                      size: 17,
+                                    ),
+                                  ],
+                                  if (vip) ...[
+                                    const SizedBox(width: 5),
+                                    const Icon(
+                                      Icons.diamond_rounded,
+                                      color: Colors.purpleAccent,
+                                      size: 16,
+                                    ),
+                                  ],
+                                ],
+                              ),
+
+                              const SizedBox(height: 6),
+
+                              Text(
+                                lastSenderId == uid
+                                    ? "Du: $lastMessage"
+                                    : lastMessage,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color:
+                                      unread ? Colors.white : Colors.white54,
+                                  fontSize: 13,
+                                  fontWeight:
+                                      unread ? FontWeight.w900 : FontWeight.w700,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      );
-                    },
+
+                        const SizedBox(width: 10),
+
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            if (time.isNotEmpty)
+                              Text(
+                                time,
+                                style: TextStyle(
+                                  color:
+                                      unread ? C.cyan : Colors.white38,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            const SizedBox(height: 10),
+                            unread
+                                ? Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 5,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: C.cyan,
+                                      borderRadius: BorderRadius.circular(999),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: C.cyan.withOpacity(0.45),
+                                          blurRadius: 12,
+                                        ),
+                                      ],
+                                    ),
+                                    child: const Text(
+                                      "NEU",
+                                      style: TextStyle(
+                                        color: Colors.black,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.chevron_right_rounded,
+                                    color: Colors.white38,
+                                  ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },

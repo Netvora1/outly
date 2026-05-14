@@ -74,6 +74,37 @@ class _CreateActivityScreenState extends State<CreateActivityScreen> {
     return score.clamp(0, 100);
   }
 
+  int get safetyScore {
+    int score = 70;
+    if (place.text.trim().isNotEmpty) score += 8;
+    if (description.text.trim().length >= 20) score += 8;
+    if (selectedDate != null && selectedTime != null) score += 6;
+    if (visibility == "private") score += 4;
+    if (joinMode == "request") score += 4;
+    return score.clamp(0, 100);
+  }
+
+  String get countdownPreview {
+    if (selectedDate == null || selectedTime == null) return "Countdown bereit";
+
+    final start = DateTime(
+      selectedDate!.year,
+      selectedDate!.month,
+      selectedDate!.day,
+      selectedTime!.hour,
+      selectedTime!.minute,
+    );
+
+    final diff = start.difference(DateTime.now());
+
+    if (diff.isNegative) return "Startet bald";
+    if (diff.inDays > 0) return "in ${diff.inDays} Tagen";
+    if (diff.inHours > 0) return "in ${diff.inHours} Stunden";
+    if (diff.inMinutes > 0) return "in ${diff.inMinutes} Minuten";
+
+    return "Startet jetzt";
+  }
+
   Future<void> pickDate() async {
     final now = DateTime.now();
 
@@ -101,7 +132,7 @@ class _CreateActivityScreenState extends State<CreateActivityScreen> {
 
     final picked = await picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 78,
+      imageQuality: 82,
     );
 
     if (picked != null) {
@@ -134,106 +165,136 @@ class _CreateActivityScreenState extends State<CreateActivityScreen> {
         selectedDate == null ||
         selectedTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Bitte Titel, Ort, Datum und Uhrzeit ausfüllen")),
+        const SnackBar(
+          content: Text("Bitte Titel, Ort, Datum und Uhrzeit ausfüllen"),
+        ),
       );
       return;
     }
 
     if (visibility == "private" && selectedPrivateUsers.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Wähle mindestens einen Freund für ein privates Event aus")),
+        const SnackBar(
+          content: Text("Wähle mindestens einen Freund für ein privates Event aus"),
+        ),
       );
       return;
     }
 
     setState(() => loading = true);
 
-    final address = place.text.trim();
+    try {
+      final address = place.text.trim();
 
-    LatLng? point = await geocodeAddress(address);
-    point ??= placeToLatLng(address);
+      LatLng? point = await geocodeAddress(address);
+      point ??= placeToLatLng(address);
 
-    final startAt = DateTime(
-      selectedDate!.year,
-      selectedDate!.month,
-      selectedDate!.day,
-      selectedTime!.hour,
-      selectedTime!.minute,
-    );
+      final startAt = DateTime(
+        selectedDate!.year,
+        selectedDate!.month,
+        selectedDate!.day,
+        selectedTime!.hour,
+        selectedTime!.minute,
+      );
 
-    final deleteAt = startAt.add(Duration(hours: durationHours));
+      final deleteAt = startAt.add(Duration(hours: durationHours));
 
-    String imageUrl = "";
+      String imageUrl = "";
 
-    if (imageFile != null) {
-      final bytes = await imageFile!.readAsBytes();
+      if (imageFile != null) {
+        final bytes = await imageFile!.readAsBytes();
 
-      imageUrl = await uploadImageBytes(
-            bytes: bytes,
-            path: "activity_images/${uid}_${DateTime.now().millisecondsSinceEpoch}.jpg",
-          ) ??
-          "";
+        imageUrl = await uploadImageBytes(
+              bytes: bytes,
+              path:
+                  "activity_images/$uid/activity_${DateTime.now().millisecondsSinceEpoch}.jpg",
+            ) ??
+            "";
+      }
+
+      final myDoc =
+          await FirebaseFirestore.instance.collection("users").doc(uid).get();
+
+      final myData = myDoc.data() ?? {};
+      final myFollowers = List<String>.from(myData["followers"] ?? []);
+
+      final allowedUsers = visibility == "private"
+          ? [...selectedPrivateUsers, uid]
+          : <String>[];
+
+      await FirebaseFirestore.instance.collection("activities").add({
+        "title": title.text.trim(),
+        "place": address,
+        "date": dateText,
+        "time": timeText,
+        "description": description.text.trim(),
+        "category": category,
+        "maxPeople": maxPeople,
+        "spotsLeft": maxPeople - 1,
+        "participantsCount": 1,
+        "isFull": false,
+        "durationHours": durationHours,
+        "vibeScore": vibeScore,
+        "safetyScore": safetyScore,
+        "participants": [uid],
+        "pendingRequests": [],
+        "creatorId": uid,
+        "creatorFollowers": myFollowers,
+        "visibility": visibility,
+        "allowedUsers": allowedUsers,
+        "joinMode": joinMode,
+        "hasChat": false,
+        "imageUrl": imageUrl,
+        "lat": point.latitude,
+        "lng": point.longitude,
+        "startAt": Timestamp.fromDate(startAt),
+        "deleteAt": Timestamp.fromDate(deleteAt),
+        "createdAt": Timestamp.now(),
+        "updatedAt": Timestamp.now(),
+        "reportedCount": 0,
+        "riskFlags": [],
+        "checkInEnabled": true,
+        "checkInCode": "OUTLY-${DateTime.now().millisecondsSinceEpoch}",
+        "checkedInUsers": [],
+        "eventStatus": "active",
+        "premiumBanner": true,
+        "countdownEnabled": true,
+      });
+
+      title.clear();
+      place.clear();
+      description.clear();
+
+      if (!mounted) return;
+
+      setState(() {
+        selectedDate = null;
+        selectedTime = null;
+        imageFile = null;
+        visibility = "public";
+        joinMode = "open";
+        maxPeople = 10;
+        durationHours = 3;
+        selectedPrivateUsers = [];
+        loading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Event erstellt 🔥")),
+      );
+    } catch (e) {
+      debugPrint("Create Activity Error: $e");
+
+      if (!mounted) return;
+
+      setState(() => loading = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Event konnte nicht erstellt werden."),
+        ),
+      );
     }
-
-    final myDoc = await FirebaseFirestore.instance.collection("users").doc(uid).get();
-    final myData = myDoc.data() ?? {};
-    final myFollowers = List<String>.from(myData["followers"] ?? []);
-
-    final allowedUsers = visibility == "private"
-        ? [...selectedPrivateUsers, uid]
-        : <String>[];
-
-    await FirebaseFirestore.instance.collection("activities").add({
-      "title": title.text.trim(),
-      "place": address,
-      "date": dateText,
-      "time": timeText,
-      "description": description.text.trim(),
-      "category": category,
-      "maxPeople": maxPeople,
-      "spotsLeft": maxPeople - 1,
-      "durationHours": durationHours,
-      "vibeScore": vibeScore,
-      "participants": [uid],
-      "pendingRequests": [],
-      "creatorId": uid,
-      "creatorFollowers": myFollowers,
-      "visibility": visibility,
-      "allowedUsers": allowedUsers,
-      "joinMode": joinMode,
-      "hasChat": false,
-      "imageUrl": imageUrl,
-      "lat": point.latitude,
-      "lng": point.longitude,
-      "startAt": Timestamp.fromDate(startAt),
-      "deleteAt": Timestamp.fromDate(deleteAt),
-      "createdAt": Timestamp.now(),
-      "updatedAt": Timestamp.now(),
-      "reportedCount": 0,
-      "riskFlags": [],
-    });
-
-    title.clear();
-    place.clear();
-    description.clear();
-
-    if (!mounted) return;
-
-    setState(() {
-      selectedDate = null;
-      selectedTime = null;
-      imageFile = null;
-      visibility = "public";
-      joinMode = "open";
-      maxPeople = 10;
-      durationHours = 3;
-      selectedPrivateUsers = [];
-      loading = false;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Event erstellt 🔥")),
-    );
   }
 
   @override
@@ -247,70 +308,42 @@ class _CreateActivityScreenState extends State<CreateActivityScreen> {
           physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 26),
           children: [
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(34),
-                gradient: LinearGradient(
-                  colors: [
-                    color.withOpacity(0.62),
-                    C.card,
-                    C.purple.withOpacity(0.25),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                border: Border.all(color: color.withOpacity(0.35)),
-                boxShadow: [
-                  BoxShadow(
-                    color: color.withOpacity(0.30),
-                    blurRadius: 34,
-                    offset: const Offset(0, 12),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                   OutlyLogo(),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Starte einen Plan 🔥",
-                          style: TextStyle(fontSize: 29, fontWeight: FontWeight.bold),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          "Mach aus einer Idee ein echtes Treffen.",
-                          style: TextStyle(color: Colors.white70),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            _CreateHeroHeader(color: color),
 
             const SizedBox(height: 16),
 
             _CreatePreviewCard(
               color: color,
-              title: title.text.trim().isEmpty ? "Dein Event-Titel" : title.text.trim(),
-              place: place.text.trim().isEmpty ? "Ort auswählen" : place.text.trim(),
+              title: title.text.trim().isEmpty
+                  ? "Dein Event-Titel"
+                  : title.text.trim(),
+              place: place.text.trim().isEmpty
+                  ? "Ort auswählen"
+                  : place.text.trim(),
               date: dateText,
               time: timeText,
               category: category,
               imageFile: imageFile,
               maxPeople: maxPeople,
               vibeScore: vibeScore,
+              safetyScore: safetyScore,
+              countdownText: countdownPreview,
               onImageTap: pickImage,
             ),
 
             const SizedBox(height: 18),
 
-            _CreateSectionTitle(
+            _CreatePremiumStrip(
+              color: color,
+              vibeScore: vibeScore,
+              safetyScore: safetyScore,
+              maxPeople: maxPeople,
+              countdownText: countdownPreview,
+            ),
+
+            const SizedBox(height: 22),
+
+            const _CreateSectionTitle(
               title: "Basics",
               subtitle: "Sag kurz, was abgeht.",
             ),
@@ -373,7 +406,7 @@ class _CreateActivityScreenState extends State<CreateActivityScreen> {
 
             const SizedBox(height: 22),
 
-            _CreateSectionTitle(
+            const _CreateSectionTitle(
               title: "Vibe wählen",
               subtitle: "Deine Kategorie steuert Look und Marker.",
             ),
@@ -431,9 +464,9 @@ class _CreateActivityScreenState extends State<CreateActivityScreen> {
 
             const SizedBox(height: 22),
 
-            _CreateSectionTitle(
+            const _CreateSectionTitle(
               title: "Dauer & Plätze",
-              subtitle: "Mach es klar und verbindlich.",
+              subtitle: "Wenn 10/10 voll ist, kann keiner mehr joinen.",
             ),
 
             const SizedBox(height: 12),
@@ -466,7 +499,7 @@ class _CreateActivityScreenState extends State<CreateActivityScreen> {
 
             const SizedBox(height: 22),
 
-            _CreateSectionTitle(
+            const _CreateSectionTitle(
               title: "Sichtbarkeit",
               subtitle: "Wer darf dein Event sehen?",
             ),
@@ -534,9 +567,9 @@ class _CreateActivityScreenState extends State<CreateActivityScreen> {
 
             const SizedBox(height: 22),
 
-            _CreateSectionTitle(
+            const _CreateSectionTitle(
               title: "Beitritt",
-              subtitle: "Sollen Leute direkt rein oder anfragen?",
+              subtitle: "Direkt rein oder Anfrage senden.",
             ),
 
             const SizedBox(height: 12),
@@ -569,7 +602,11 @@ class _CreateActivityScreenState extends State<CreateActivityScreen> {
 
             const SizedBox(height: 24),
 
-            _CreateSafetyBox(),
+            _CreateSafetyBox(score: safetyScore),
+
+            const SizedBox(height: 18),
+
+            _CheckInPreviewBox(color: color),
 
             const SizedBox(height: 18),
 
@@ -579,6 +616,157 @@ class _CreateActivityScreenState extends State<CreateActivityScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _CreateHeroHeader extends StatelessWidget {
+  final Color color;
+
+  const _CreateHeroHeader({required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(34),
+        gradient: LinearGradient(
+          colors: [
+            color.withOpacity(0.62),
+            C.card,
+            C.purple.withOpacity(0.25),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(color: color.withOpacity(0.35)),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.30),
+            blurRadius: 34,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          OutlyLogo(),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Premium Event 🔥",
+                  style: TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  "Countdown, Safety Score, Check-In und Live-Counter vorbereitet.",
+                  style: TextStyle(color: Colors.white70, height: 1.3),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CreatePremiumStrip extends StatelessWidget {
+  final Color color;
+  final int vibeScore;
+  final int safetyScore;
+  final int maxPeople;
+  final String countdownText;
+
+  const _CreatePremiumStrip({
+    required this.color,
+    required this.vibeScore,
+    required this.safetyScore,
+    required this.maxPeople,
+    required this.countdownText,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _PremiumMiniCard(
+            icon: Icons.timer_rounded,
+            label: countdownText,
+            color: C.cyan,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _PremiumMiniCard(
+            icon: Icons.shield_rounded,
+            label: "$safetyScore% safe",
+            color: C.green,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _PremiumMiniCard(
+            icon: Icons.groups_2_rounded,
+            label: "1/$maxPeople",
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PremiumMiniCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  const _PremiumMiniCard({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 8),
+      decoration: BoxDecoration(
+        color: C.card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.25)),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.10),
+            blurRadius: 16,
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -594,6 +782,8 @@ class _CreatePreviewCard extends StatelessWidget {
   final XFile? imageFile;
   final int maxPeople;
   final int vibeScore;
+  final int safetyScore;
+  final String countdownText;
   final VoidCallback onImageTap;
 
   const _CreatePreviewCard({
@@ -606,6 +796,8 @@ class _CreatePreviewCard extends StatelessWidget {
     required this.imageFile,
     required this.maxPeople,
     required this.vibeScore,
+    required this.safetyScore,
+    required this.countdownText,
     required this.onImageTap,
   });
 
@@ -614,17 +806,17 @@ class _CreatePreviewCard extends StatelessWidget {
     return GestureDetector(
       onTap: onImageTap,
       child: Container(
-        height: 235,
+        height: 270,
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(32),
+          borderRadius: BorderRadius.circular(34),
           color: C.card,
           border: Border.all(color: color.withOpacity(0.42)),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.22),
-              blurRadius: 28,
-              offset: const Offset(0, 10),
+              color: color.withOpacity(0.25),
+              blurRadius: 32,
+              offset: const Offset(0, 12),
             ),
           ],
         ),
@@ -636,7 +828,7 @@ class _CreatePreviewCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            color.withOpacity(0.82),
+                            color.withOpacity(0.86),
                             C.card,
                             Colors.black,
                           ],
@@ -647,7 +839,7 @@ class _CreatePreviewCard extends StatelessWidget {
                       child: Icon(
                         catIcon(category),
                         color: Colors.white.withOpacity(0.9),
-                        size: 72,
+                        size: 78,
                       ),
                     )
                   : FutureBuilder<Uint8List>(
@@ -663,15 +855,14 @@ class _CreatePreviewCard extends StatelessWidget {
                       },
                     ),
             ),
-
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      Colors.black.withOpacity(0.05),
-                      Colors.black.withOpacity(0.30),
-                      Colors.black.withOpacity(0.78),
+                      Colors.black.withOpacity(0.03),
+                      Colors.black.withOpacity(0.28),
+                      Colors.black.withOpacity(0.82),
                     ],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
@@ -679,7 +870,6 @@ class _CreatePreviewCard extends StatelessWidget {
                 ),
               ),
             ),
-
             Positioned(
               top: 14,
               left: 14,
@@ -691,28 +881,90 @@ class _CreatePreviewCard extends StatelessWidget {
                 ],
               ),
             ),
-
+            Positioned(
+              top: 54,
+              left: 14,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.42),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: C.cyan.withOpacity(0.35)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: C.cyan.withOpacity(0.18),
+                      blurRadius: 16,
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.timer_rounded, color: C.cyan, size: 16),
+                    const SizedBox(width: 6),
+                    Text(
+                      countdownText,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             Positioned(
               top: 14,
               right: 14,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.38),
+                  color: Colors.black.withOpacity(0.42),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: Colors.white12),
                 ),
                 child: Text(
-                  "Vibe $vibeScore%",
+                  "Vibe $vibeScore% • Safety $safetyScore%",
                   style: const TextStyle(
                     color: C.cyan,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 11,
                   ),
                 ),
               ),
             ),
-
+            Positioned(
+              right: 14,
+              bottom: 76,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+                decoration: BoxDecoration(
+                  color: C.green.withOpacity(0.92),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: C.green.withOpacity(0.30),
+                      blurRadius: 16,
+                    ),
+                  ],
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.qr_code_2_rounded, color: Colors.black, size: 16),
+                    SizedBox(width: 5),
+                    Text(
+                      "Check-In",
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             Positioned(
               left: 18,
               right: 18,
@@ -725,14 +977,18 @@ class _CreatePreviewCard extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 25,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                   const SizedBox(height: 7),
                   Row(
                     children: [
-                      const Icon(Icons.location_on_outlined, color: Colors.white70, size: 17),
+                      const Icon(
+                        Icons.location_on_outlined,
+                        color: Colors.white70,
+                        size: 17,
+                      ),
                       const SizedBox(width: 5),
                       Expanded(
                         child: Text(
@@ -744,10 +1000,10 @@ class _CreatePreviewCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        "$maxPeople Plätze",
+                        "1/$maxPeople dabei",
                         style: const TextStyle(
                           color: Colors.white70,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
                     ],
@@ -755,12 +1011,14 @@ class _CreatePreviewCard extends StatelessWidget {
                 ],
               ),
             ),
-
             if (imageFile == null)
               const Positioned(
                 right: 18,
-                bottom: 74,
-                child: Icon(Icons.add_a_photo_outlined, color: Colors.white70),
+                bottom: 122,
+                child: Icon(
+                  Icons.add_a_photo_outlined,
+                  color: Colors.white70,
+                ),
               ),
           ],
         ),
@@ -828,7 +1086,10 @@ class _CreateSectionTitle extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(fontSize: 21, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 21,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 2),
               Text(
@@ -902,27 +1163,94 @@ class _CreateStepperCard extends StatelessWidget {
 }
 
 class _CreateSafetyBox extends StatelessWidget {
+  final int score;
+
+  const _CreateSafetyBox({
+    required this.score,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = score >= 85 ? C.green : C.orange;
+
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: color.withOpacity(0.30)),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.10),
+            blurRadius: 18,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.shield_rounded, color: color, size: 30),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              "Safety Score $score%: Wähle öffentliche Orte und beschreibe klar, was geplant ist.",
+              style: const TextStyle(
+                color: Colors.white70,
+                height: 1.35,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CheckInPreviewBox extends StatelessWidget {
+  final Color color;
+
+  const _CheckInPreviewBox({
+    required this.color,
+  });
+
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: C.orange.withOpacity(0.10),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: C.orange.withOpacity(0.30)),
+        color: C.card,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: color.withOpacity(0.28)),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.shield_outlined, color: C.orange),
-          SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              "Safety-Tipp: Wähle öffentliche Orte und beschreibe klar, was geplant ist.",
-              style: TextStyle(
-                color: Colors.white70,
-                height: 1.35,
-                fontWeight: FontWeight.w600,
-              ),
+          Container(
+            height: 46,
+            width: 46,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.16),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(Icons.qr_code_2_rounded, color: color),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "QR Check-In vorbereitet",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  "Beim Erstellen wird automatisch ein Check-In Code gespeichert.",
+                  style: TextStyle(color: Colors.white54, fontSize: 12),
+                ),
+              ],
             ),
           ),
         ],
@@ -1002,8 +1330,7 @@ class _CreateOptionCard extends StatelessWidget {
                 ],
               ),
             ),
-            if (active)
-              Icon(Icons.check_circle, color: color),
+            if (active) Icon(Icons.check_circle, color: color),
           ],
         ),
       ),
@@ -1100,7 +1427,8 @@ class _PrivateFriendsPickerState extends State<PrivateFriendsPicker> {
           const SizedBox(height: 16),
           Expanded(
             child: FutureBuilder<DocumentSnapshot>(
-              future: FirebaseFirestore.instance.collection("users").doc(uid).get(),
+              future:
+                  FirebaseFirestore.instance.collection("users").doc(uid).get(),
               builder: (context, mySnap) {
                 if (!mySnap.hasData) {
                   return const Center(
@@ -1108,14 +1436,16 @@ class _PrivateFriendsPickerState extends State<PrivateFriendsPicker> {
                   );
                 }
 
-                final myData = mySnap.data!.data() as Map<String, dynamic>? ?? {};
+                final myData =
+                    mySnap.data!.data() as Map<String, dynamic>? ?? {};
                 final following = List<String>.from(myData["following"] ?? []);
 
                 if (following.isEmpty) {
                   return const Center(
                     child: InfoCard(
                       title: "Keine Freunde",
-                      text: "Folge zuerst Leuten, damit du private Events mit ihnen teilen kannst.",
+                      text:
+                          "Folge zuerst Leuten, damit du private Events mit ihnen teilen kannst.",
                     ),
                   );
                 }
@@ -1123,7 +1453,10 @@ class _PrivateFriendsPickerState extends State<PrivateFriendsPicker> {
                 return StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance
                       .collection("users")
-                      .where(FieldPath.documentId, whereIn: following.take(10).toList())
+                      .where(
+                        FieldPath.documentId,
+                        whereIn: following.take(10).toList(),
+                      )
                       .snapshots(),
                   builder: (context, snap) {
                     if (!snap.hasData) {
@@ -1165,13 +1498,15 @@ class _PrivateFriendsPickerState extends State<PrivateFriendsPicker> {
                             child: Row(
                               children: [
                                 OutlyAvatar(
-                                  photoUrl: (data["photoUrl"] ?? "").toString(),
+                                  photoUrl:
+                                      (data["photoUrl"] ?? "").toString(),
                                   radius: 24,
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       verifiedName(
                                         data["username"] ?? "user",
@@ -1180,7 +1515,9 @@ class _PrivateFriendsPickerState extends State<PrivateFriendsPicker> {
                                       const SizedBox(height: 4),
                                       Text(
                                         data["city"] ?? "Keine Stadt",
-                                        style: const TextStyle(color: Colors.white54),
+                                        style: const TextStyle(
+                                          color: Colors.white54,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -1189,7 +1526,8 @@ class _PrivateFriendsPickerState extends State<PrivateFriendsPicker> {
                                   isSelected
                                       ? Icons.check_circle
                                       : Icons.radio_button_unchecked,
-                                  color: isSelected ? C.orange : Colors.white30,
+                                  color:
+                                      isSelected ? C.orange : Colors.white30,
                                 ),
                               ],
                             ),
@@ -1208,6 +1546,50 @@ class _PrivateFriendsPickerState extends State<PrivateFriendsPicker> {
             onPressed: () => Navigator.pop(context, selected),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class OutlySelectBox extends StatelessWidget {
+  final String text;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const OutlySelectBox({
+    super.key,
+    required this.text,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+        decoration: BoxDecoration(
+          color: C.card,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: C.cyan.withOpacity(0.18)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: C.cyan, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                text,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

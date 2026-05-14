@@ -1,0 +1,122 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userRole() {
+      return signedIn()
+        ? firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role
+        : "user";
+    }
+
+    function isOwner() {
+      return signedIn() &&
+        (
+          request.auth.uid == "roduqZRk4GgXLCQIZGIFAWN0UUg1" ||
+          userRole() == "owner"
+        );
+    }
+
+    function isAdmin() {
+      return signedIn() &&
+        (
+          isOwner() ||
+          userRole() == "admin"
+        );
+    }
+
+    function isModerator() {
+      return signedIn() &&
+        (
+          isAdmin() ||
+          userRole() == "moderator"
+        );
+    }
+
+    function isImage() {
+      return request.resource.contentType.matches("image/.*");
+    }
+
+    match /profile_images/{userId}/{fileName} {
+      allow read: if true;
+
+      allow write: if signedIn()
+        && request.auth.uid == userId
+        && isImage()
+        && request.resource.size < 5 * 1024 * 1024;
+
+      allow delete: if signedIn()
+        && (
+          request.auth.uid == userId ||
+          isAdmin()
+        );
+    }
+
+    match /activity_images/{userId}/{fileName} {
+      allow read: if true;
+
+      allow write: if signedIn()
+        && request.auth.uid == userId
+        && isImage()
+        && request.resource.size < 8 * 1024 * 1024;
+
+      allow delete: if signedIn()
+        && (
+          request.auth.uid == userId ||
+          isModerator()
+        );
+    }
+
+    match /stories/{userId}/{fileName} {
+      allow read: if true;
+
+      allow write: if signedIn()
+        && request.auth.uid == userId
+        && isImage()
+        && request.resource.size < 8 * 1024 * 1024;
+
+      allow delete: if signedIn()
+        && (
+          request.auth.uid == userId ||
+          isModerator()
+        );
+    }
+
+    match /moments/{userId}/{fileName} {
+      allow read: if true;
+
+      allow write: if signedIn()
+        && request.auth.uid == userId
+        && isImage()
+        && request.resource.size < 8 * 1024 * 1024;
+
+      allow delete: if signedIn()
+        && (
+          request.auth.uid == userId ||
+          isModerator()
+        );
+    }
+
+    match /support_uploads/{userId}/{fileName} {
+      allow read: if signedIn()
+        && (
+          request.auth.uid == userId ||
+          isModerator()
+        );
+
+      allow write: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.size < 10 * 1024 * 1024;
+
+      allow delete: if isModerator();
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
